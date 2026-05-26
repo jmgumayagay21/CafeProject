@@ -1,25 +1,29 @@
 // Base Class
 class MenuItem {
-  constructor(id, name, price, desc, tags = []) {
+  // Update 5/26 Added the Stock for Inventory Management.
+  constructor(id, name, price, desc, tags = [], stock = 99) {
     this.id = id;
     this.name = name;
     this.price = price;
     this.desc = desc;
     this.tags = tags;
+    this.stock = stock; // New property for inventory management
   }
 }
 
 // Inherits from MenuItem
 class FoodItem extends MenuItem {
-  constructor(id, name, price, desc, tags = []) {
-    super(id, name, price, desc, tags);
+  constructor(id, name, price, desc, tags = [], stock = 15) { // fixed default stock for food items
+    super(id, name, price, desc, tags, stock); // Pass stock to super
   }
 }
 
 // Inherits from MenuItem, adds Drink-specific properties
+// Modify the DrinkItem constructor to accept a tags array
+// Update 5/26 
 class DrinkItem extends MenuItem {
-  constructor(id, name, price, desc, icon) {
-    super(id, name, price, desc, []); 
+  constructor(id, name, price, desc, icon, tags = [], stock = 10) { // <-- Added tags and stock here
+    super(id, name, price, desc, tags, stock); // <-- Pass tags and stock to super instead of []
     this.icon = icon;
   }
 }

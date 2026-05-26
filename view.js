@@ -25,6 +25,7 @@ class UIManager {
   }
 
   createFoodCard(item) {
+    const isAvailable = item.stock > 0;
     return `
       <div class="menu-card" data-id="${item.id}" data-tags="${item.tags.join(' ')}">
         <div class="card-top">
@@ -37,7 +38,7 @@ class UIManager {
           <div class="add-wrap">
             <div class="qty-ctrl visible" id="qc-${item.id}">
               <button class="qty-btn" onclick="app.changePreQty('${item.id}', -1)">−</button>
-              <span class="qty-num" id="qn-${item.id}">1</span>
+              <span class="qty-num" id="qn-${item.id}">0</span>
               <button class="qty-btn" onclick="app.changePreQty('${item.id}', 1)">+</button>
             </div>
             <button class="add-btn" onclick="app.addToCart('${item.id}', '${item.name.replace(/'/g, "\\'")}', ${item.price})">+ Add</button>
@@ -48,8 +49,9 @@ class UIManager {
   }
 
   createDrinkCard(drink) {
+    const isAvailable = drink.stock > 0;
     return `
-      <div class="drink-card">
+      <div class="drink-card" data-id="${drink.id}" data-tags="${drink.tags.join(' ')}">
         <div class="drink-icon">${drink.icon}</div>
         <p class="drink-name">${drink.name}</p>
         <p class="drink-desc">${drink.desc}</p>
@@ -62,7 +64,17 @@ class UIManager {
             <option value="No sugar">No sugar</option>
           </select>
         </div>
-        <div class="drink-add">
+        
+        <div class="tags" style="margin-top: 14px; justify-content: center; min-height: 22px;">
+          ${this.tagHTML(drink.tags)}
+        </div>
+
+        <div class="drink-add" style="margin-top: 14px; flex-direction: row; justify-content: center; gap: 8px;">
+          <div class="qty-ctrl visible" id="qc-${drink.id}">
+            <button class="qty-btn" onclick="app.changePreQty('${drink.id}', -1)">−</button>
+            <span class="qty-num" id="qn-${drink.id}">0</span>
+            <button class="qty-btn" onclick="app.changePreQty('${drink.id}', 1)">+</button>
+          </div>
           <button class="add-btn" onclick="app.addDrinkToCart('${drink.id}', '${drink.name.replace(/'/g, "\\'")}', ${drink.price})">+ Add</button>
         </div>
       </div>

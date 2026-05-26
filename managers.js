@@ -22,30 +22,51 @@ class Observable {
 // ==========================================
 class MenuCatalog {
   constructor() {
+// Update 5/26 Added the Stock for Inventory Management.
+    this.categories = { id: 'special-item', name: "Truffle Scrambled Eggs", price: 285, stock: 5};
     this.categories = {
       breakfast: [
-        new FoodItem('b1', "Roo's Big Breakfast", 395, "Two eggs any style, bacon rashers, grilled tomato...", ['popular']),
-        new FoodItem('b2', "Avocado Toast", 280, "Smashed avo, feta, cherry tomatoes...", ['vegan']),
-        new FoodItem('b3', "Eggs Benedict", 320, "Two poached eggs, smoked ham, hollandaise...", ['popular'])
+        new FoodItem('b1', "Roo's Big Breakfast", 395, "Two eggs any style, bacon rashers, grilled tomato...", ['popular'], 10),
+        new FoodItem('b2', "Avocado Toast", 280, "Smashed avo, feta, cherry tomatoes...", ['vegan'], 5),
+        new FoodItem('b3', "Eggs Benedict", 320, "Two poached eggs, smoked ham, hollandaise...", ['popular'], 8)
       ],
       allday: [
-        new FoodItem('a1', "Roo Burger", 445, "Wagyu beef patty, aged cheddar...", ['popular']),
-        new FoodItem('a4', "Truffle Fries", 195, "Crispy skin-on fries tossed in truffle oil...", ['popular'])
+        new FoodItem('a1', "Roo Burger", 445, "Wagyu beef patty, aged cheddar...", ['popular'], 10),
+        new FoodItem('a4', "Truffle Fries", 195, "Crispy skin-on fries tossed in truffle oil...", ['popular'], 7)
       ],
       mains: [
-        new FoodItem('m1', "Seared Salmon", 585, "Pan-seared Atlantic salmon, lemon caper butter...", ['new']),
-        new FoodItem('m3', "Mushroom Risotto", 395, "Arborio rice, wild mushroom medley...", ['vegan', 'popular'])
+        new FoodItem('m1', "Seared Salmon", 585, "Pan-seared Atlantic salmon, lemon caper butter...", ['new'], 12),
+        new FoodItem('m3', "Mushroom Risotto", 395, "Arborio rice, wild mushroom medley...", ['vegan', 'popular'], 10)
       ],
       sweets: [
         new FoodItem('s1', "Burnt Basque Cheesecake", 195, "Creamy, caramelized top, slightly custardy...", ['popular']),
-        new FoodItem('s3', "Croissant (Plain / Almond)", 120, "Buttery, flaky layers...", [])
+        new FoodItem('s3', "Croissant (Plain / Almond)", 120, "Buttery, flaky layers...", [], 10)
       ],
       drinks: [
-        new DrinkItem('d1', "Espresso", 115, "Single or double shot of our house blend.", "☕"),
-        new DrinkItem('d4', "Iced Latte", 175, "Espresso over ice, topped with cold milk.", "🧋"),
-        new DrinkItem('d5', "Matcha Latte", 185, "Ceremonial grade matcha, steamed milk.", "🍵")
+        new DrinkItem('d1', "Espresso", 115, "Single or double shot of our house blend.", "☕", [], 10),
+        new DrinkItem('d4', "Iced Latte", 175, "Espresso over ice, topped with cold milk.", "🥃", ['popular'], 10), // Added tag and stock
+        new DrinkItem('d5', "Matcha Latte", 185, "Ceremonial grade matcha, steamed milk.", "🍵", ['popular'], 10) // Added tag and stock
       ]
     };
+  }
+ // Update 5/26: FIXED: Added real-time layout adjustment engine for hardcoded special cards
+  updateSpecialItem(stocksCount) {
+    this.specialItem.stocks = stocksCount;
+    const btn = document.getElementById('special-add-btn');
+    const ctrl = document.getElementById('special-qty-ctrl');
+    if (btn && ctrl) {
+      if (stocksCount <= 0) {
+        btn.innerHTML = "Out of Stock";
+        btn.disabled = true;
+        btn.style.cssText = "background:rgba(208,96,96,0.1); border-color:rgba(208,96,96,0.3); color:#d06060; cursor:not-allowed;";
+        ctrl.style.display = "none";
+      } else {
+        btn.innerHTML = `<span class="plus">+</span> Add to Order`;
+        btn.disabled = false;
+        btn.style.cssText = "";
+        ctrl.style.display = "inline-flex";
+      }
+    }
   }
 
   getSection(sectionId) {

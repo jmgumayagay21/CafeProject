@@ -63,10 +63,10 @@
       <h3 class="special-title">Truffle Scrambled<br>Eggs on Sourdough</h3>
       <p class="special-desc">Three free-range eggs whipped with crème fraîche, finished with black truffle oil, fresh chives, and served on thick-cut housemade sourdough toast.</p>
       <div class="special-actions">
-        <div class="qty-ctrl" id="special-qty-ctrl">
-          <button type="button" class="qty-btn" onclick="changeQty('special',-1)">−</button>
-          <span class="qty-num" id="special-qty-num">1</span>
-          <button type="button" class="qty-btn" onclick="changeQty('special',1)">+</button>
+        <div class="qty-ctrl visible" id="qc-special-item">
+          <button type="button" class="qty-btn" onclick="app.changePreQty('special-item',-1)">−</button>
+          <span class="qty-num" id="qn-special-item">0</span>
+          <button type="button" class="qty-btn" onclick="app.changePreQty('special-item',1)">+</button>
         </div>
         <button type="button" class="add-btn" id="special-add-btn" onclick="app.addToCart('special-item', 'Truffle Scrambled Eggs', 285)">
           <span class="plus">+</span> Add to Order
@@ -237,7 +237,7 @@
 
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js";
-  import { getFirestore, collection, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
+  import { getFirestore, collection, addDoc, doc, runTransaction, onSnapshot, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
 
   const firebaseConfig = {
     apiKey: "AIzaSyBKHVnaOw_RBd5x3D9f_vbuogMVKJTLSaQ",
@@ -252,9 +252,63 @@
   const firebaseApp = initializeApp(firebaseConfig);
   const db = getFirestore(firebaseApp);
 
-  // Bind to global scope so controller.js can interact with database operations
   window.firebaseDB = db;
-  window.dbMethods = { collection, addDoc, serverTimestamp };
+  window.dbMethods = { collection, addDoc, doc, runTransaction, serverTimestamp };
+
+  const fallbackRegistry = {
+    'b1': "Roo's Big Breakfast",
+    'b2': "Avocado Toast",
+    'b3': "Eggs Benedict",
+    'a1': "Roo Burger",
+    'a4': "Truffle Fries",
+    'm1': "Seared Salmon",
+    'm3': "Mushroom Risotto",
+    's1': "Burnt Basque Cheesecake",
+    's3': "Croissant (Plain / Almond)",
+    'd1': "Espresso",
+    'd4': "Iced Latte",
+    'd5': "Matcha Latte"
+  };
+
+  // LIVE SNAPSHOT STREAM LISTENER
+  onSnapshot(collection(db, "products"), (snapshot) => {
+    let cloudMenu = { breakfast: [], allday: [], mains: [], sweets: [], drinks: [] };
+    
+    snapshot.forEach((docSnap) => {
+      const data = docSnap.data();
+      const docId = docSnap.id;
+      
+      // FIXED 1: Clean category string formats from database to be lowercased and trimmed
+      let category = data.category ? String(data.category).toLowerCase().trim() : "";
+      
+      // FIXED 2: Forced routing. If the document ID starts with 'd', force it to the 'drinks' category layout
+      if (docId.startsWith('d')) {
+        category = "drinks";
+      }
+
+      if (category && cloudMenu[category]) {
+        let verifiedName = data.name;
+        if (!verifiedName || verifiedName === "Unknown Item") {
+          verifiedName = fallbackRegistry[docId] || "Unknown Item";
+        }
+
+        cloudMenu[category].push({
+          id: docId, 
+          name: verifiedName, 
+          price: data.price ?? 0,
+          desc: data.desc ?? "",
+          tags: data.tags || [],
+          stocks: data.stocks ?? 0,
+          icon: data.icon || "☕"
+        });
+      }
+    });
+
+    if (window.app) {
+      window.app.catalog.updateFromCloud(cloudMenu);
+      window.app.ui.renderMenu(window.app.catalog);
+    }
+  });
 </script>
 </body>
 </html>

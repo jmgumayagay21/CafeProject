@@ -38,27 +38,65 @@ class CafeController {
   }
 
   // ─── CART FUNCTIONS ───
-
+// Update 5/26 - To change/update the quantity of items 0
   changePreQty(id, delta) {
-    if (!this.ui.preQty[id]) this.ui.preQty[id] = 1;
-    this.ui.preQty[id] = Math.max(1, this.ui.preQty[id] + delta);
-    const el = document.getElementById('qn-' + id);
+    // If it doesn't exist yet, initialize it at 1
+    if (this.ui.preQty[id] === undefined) this.ui.preQty[id] = 1;
+    
+    // Allow it to drop down to 0 instead of stopping at 1
+    this.ui.preQty[id] = Math.max(0, this.ui.preQty[id] + delta);
+    
+    // Support both 'qn-special-item' or the older 'special-qty-num' ID fallback
+    let el = document.getElementById('qn-' + id);
+    if (id === 'special-item' && !el) {
+      el = document.getElementById('special-qty-num');
+    }
+    
     if (el) el.textContent = this.ui.preQty[id];
   }
 
   addToCart(id, name, price) {
-    const qty = this.ui.preQty[id] || 1;
-    this.cart.addItem(id, name, price, qty);
-    this.ui.preQty[id] = 1;
-    if (document.getElementById('qn-' + id)) document.getElementById('qn-' + id).textContent = 1;
+    const qty = this.ui.preQty[id] !== undefined ? this.ui.preQty[id] : 1;
+    
+    // NEW: Guard check validation clause preventing 0 additions
+    if (qty <= 0) {
+      this.ui.showToast("⚠️ Please select a quantity of 1 or more.");
+      return;
+    }
+    
+    // Adding the item now automatically triggers updateCartView() via the Observer!
+    this.cart.addItem(id, name, price, qty); 
+    
+    // Reset tracker back to 1 after a successful order validation pass
+    this.ui.preQty[id] = 1; 
+    
+    // Update displays
+    let el = document.getElementById('qn-' + id);
+    if (id === 'special-item' && !el) el = document.getElementById('special-qty-num');
+    if (el) el.textContent = 1;
+    
     this.ui.showToast(`✓ Added ${name} to order`);
   }
-
+// Update 5/26 - To have Sugarlevel 25% and 75% and Quantity selection for drinks
   addDrinkToCart(id, name, price) {
+    // 1. Get the configured sugar selection level
     const sugarLevel = document.getElementById('sugar-' + id).value;
     const formattedName = sugarLevel !== 'Regular' ? `${name} (${sugarLevel})` : name;
     const uniqueId = sugarLevel !== 'Regular' ? `${id}-${sugarLevel}` : id;
-    this.addToCart(uniqueId, formattedName, price);
+    
+    // 2. Extract the current quantity input value from preQty tracker
+    const qty = this.ui.preQty[id] || 1;
+    
+    // 3. Direct add item interaction with the exact count
+    this.cart.addItem(uniqueId, formattedName, price, qty); 
+    
+    // 4. Reset tracker data state and local interface displays back to 1
+    this.ui.preQty[id] = 1; 
+    if (document.getElementById('qn-' + id)) {
+      document.getElementById('qn-' + id).textContent = 1;
+    }
+    
+    this.ui.showToast(`✓ Added ${qty}x ${formattedName} to order`);
   }
 
   updateCartQty(id, delta) {
@@ -126,7 +164,7 @@ class CafeController {
       total: stats.total
     };
 
-    // Firebase Data Transmit Call
+     // Firebase Data Transmit Call with stock checking transaction
     this.saveOrderToFirebase(orderSummary, stats, newOrder.items);
 
     this.cart.clear();
@@ -138,6 +176,7 @@ class CafeController {
     this.ui.showOrderConfirmation(orderSummary);
   }
 
+  // CLOUD ATOMIC TRANSACTIONS: Reads dynamic states, blocks invalid buys, updates fields safely
   async saveOrderToFirebase(summary, stats, cartItems) {
     if (!window.firebaseDB || !window.dbMethods) {
       console.warn("Firebase not ready or active.");
@@ -145,24 +184,57 @@ class CafeController {
     }
 
     const db = window.firebaseDB;
-    const { collection, addDoc, serverTimestamp } = window.dbMethods;
+    const { collection, addDoc, doc, runTransaction, serverTimestamp } = window.dbMethods;
 
     try {
-      await addDoc(collection(db, "orders"), {
-        queueNumber: summary.position,
-        orderType: summary.type,
-        tableId: summary.table,
-        subtotal: stats.subtotal,
-        tax: stats.tax,
-        totalPaid: summary.total,
-        estimatedWait: summary.waitTime,
-        items: cartItems, 
-        createdAt: serverTimestamp()
+      await runTransaction(db, async (transaction) => {
+        const itemIds = Object.keys(cartItems);
+        let docsToUpdate = [];
+
+        for (let id of itemIds) {
+          // FIXED: Prevents slicing 'special-item' into 'special' while correctly parsing drink variants
+          const cleanId = id === 'special-item' ? id : id.split('-')[0];
+          
+          const productRef = doc(db, "products", cleanId);
+          const productSnap = await transaction.get(productRef);
+
+          if (!productSnap.exists()) {
+            throw `Product ID ${cleanId} does not exist in the store directory!`;
+          }
+
+          const currentStock = productSnap.data().stocks ?? 0;
+          const requestedQty = cartItems[id].qty;
+
+          if (currentStock < requestedQty) {
+            throw `Sorry, ${cartItems[id].name} is insufficient in stock!`;
+          }
+
+          docsToUpdate.push({ ref: productRef, newStock: currentStock - requestedQty });
+        }
+
+        // Apply calculated updates sequentially across active item array targets
+        for (let update of docsToUpdate) {
+          transaction.update(update.ref, { stocks: update.newStock });
+        }
+
+        // Write order receipt log entry to database
+        await addDoc(collection(db, "orders"), {
+          queueNumber: summary.position,
+          orderType: summary.type,
+          tableId: summary.table,
+          subtotal: stats.subtotal,
+          tax: stats.tax,
+          totalPaid: summary.total,
+          estimatedWait: summary.waitTime,
+          items: cartItems, 
+          createdAt: serverTimestamp()
+        });
       });
-      console.log("🎉 Secure order synchronization with Firestore complete!");
+
+      console.log("🎉 Secure stock deduction and order synchronization complete!");
     } catch (error) {
-      console.error("Error writing document to Firestore: ", error);
-      this.ui.showToast("⚠️ Processed locally; cloud synchronization interrupted.");
+      console.error("Transaction failed: ", error);
+      this.ui.showToast("⚠️ " + error);
     }
   }
 
