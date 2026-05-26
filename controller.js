@@ -7,10 +7,11 @@ class CafeController {
     this.ui = new UIManager();
     
     this.activeQueuePosition = null;
-    this.selectedTableId = null; 
+    this.activeQueueWait = null;
+    this.selectedTableId = null;
+    this.orderType = null; // 'dine-in' | 'pickup'
+    this._queueTimerInterval = null;
 
-    // THE OBSERVER IN ACTION: The Controller listens to the Cart.
-    // Anytime the cart calls this.notify(), this function runs automatically!
     this.cart.subscribe(() => {
       this.updateCartView();
     });
@@ -20,15 +21,23 @@ class CafeController {
 
   init() {
     this.ui.renderMenu(this.catalog);
-    this.updateCartView(); 
+    this.updateCartView();
   }
 
   updateCartView() {
-    this.ui.updateCart(this.cart, this.activeQueuePosition, this.queue.getLength(), this.selectedTableId, this.seating.getAvailableCount());
+    this.ui.updateCart(
+      this.cart,
+      this.activeQueuePosition,
+      this.queue.getLength(),
+      this.selectedTableId,
+      this.seating.getAvailableCount(),
+      this.orderType,
+      this.activeQueueWait
+    );
     this.ui.renderSeating(this.seating, this.selectedTableId);
   }
 
-  // ─── RESTORED CART FUNCTIONS ───
+  // ─── CART FUNCTIONS ───
 
   changePreQty(id, delta) {
     if (!this.ui.preQty[id]) this.ui.preQty[id] = 1;
@@ -39,11 +48,8 @@ class CafeController {
 
   addToCart(id, name, price) {
     const qty = this.ui.preQty[id] || 1;
-    
-    // Adding the item now automatically triggers updateCartView() via the Observer!
-    this.cart.addItem(id, name, price, qty); 
-    
-    this.ui.preQty[id] = 1; 
+    this.cart.addItem(id, name, price, qty);
+    this.ui.preQty[id] = 1;
     if (document.getElementById('qn-' + id)) document.getElementById('qn-' + id).textContent = 1;
     this.ui.showToast(`✓ Added ${name} to order`);
   }
@@ -56,11 +62,24 @@ class CafeController {
   }
 
   updateCartQty(id, delta) {
-    // This automatically triggers the UI update via Observer
-    this.cart.changeQty(id, delta); 
+    this.cart.changeQty(id, delta);
   }
 
-  // ─── SEATING & ORDERING ───
+  // ─── ORDER TYPE ───
+
+  setOrderType(type) {
+    this.orderType = type; // 'dine-in' | 'pickup'
+    if (type === 'pickup') {
+      this.selectedTableId = 'takeout';
+    } else {
+      this.selectedTableId = null;
+      this.ui.toggleCart(false);
+      this.ui.toggleSeatingModal(true);
+    }
+    this.updateCartView();
+  }
+
+  // ─── SEATING ───
 
   selectTable(id) {
     const table = this.seating.getTables().find(t => t.id === id);
@@ -69,18 +88,23 @@ class CafeController {
       return;
     }
     this.selectedTableId = (this.selectedTableId === id) ? null : id;
+    this.orderType = 'dine-in';
     this.updateCartView();
+    this.ui.toggleSeatingModal(false);
+    this.ui.toggleCart(true);
   }
 
   setTakeout() {
     this.selectedTableId = 'takeout';
+    this.orderType = 'pickup';
     this.updateCartView();
   }
 
+  // ─── PLACE ORDER ───
+
   placeOrder() {
     if (!this.selectedTableId) {
-      this.ui.showToast("⚠️ Please select a seat or choose Takeaway before ordering.");
-      this.ui.toggleSeatingModal(true);
+      this.ui.showToast("⚠️ Please select a seat or choose Pickup before ordering.");
       return;
     }
 
@@ -88,48 +112,113 @@ class CafeController {
     const newOrder = new Order({...this.cart.getItems()}, stats.estimatedTime);
     this.activeQueuePosition = this.queue.addOrder(newOrder);
     const waitTime = this.queue.getEstimatedWait(this.activeQueuePosition, stats.estimatedTime);
-    
+    this.activeQueueWait = waitTime;
+
     if (this.selectedTableId !== 'takeout') {
       this.seating.toggleTableStatus(this.selectedTableId);
     }
 
-    // Clearing the cart automatically triggers the UI update via Observer
-    this.cart.clear(); 
-    this.selectedTableId = null; 
-    
+    const orderSummary = {
+      position: this.activeQueuePosition,
+      waitTime,
+      type: this.orderType,
+      table: this.selectedTableId,
+      total: stats.total
+    };
+
+    // Firebase Data Transmit Call
+    this.saveOrderToFirebase(orderSummary, stats, newOrder.items);
+
+    this.cart.clear();
+    this.selectedTableId = null;
+    this.orderType = null;
+
     this.ui.toggleCart(false);
-    this.ui.showToast(`✓ Order placed! You are #${this.activeQueuePosition}. Wait: ~${waitTime} min.`);
+    this._startQueueCountdown(orderSummary);
+    this.ui.showOrderConfirmation(orderSummary);
   }
 
-  async checkInventoryAndOrder(orderData) {
-    try {
-      const response = await fetch('http://localhost:8000/api/place-order', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(orderData)
-      });
-      const result = await response.json();
-      if (result.success) this.finalizeOrder(); 
-      else this.ui.showToast("⚠️ " + result.error_message); 
-    } catch (error) {
-      this.ui.showToast("Cannot connect to the database.");
+  async saveOrderToFirebase(summary, stats, cartItems) {
+    if (!window.firebaseDB || !window.dbMethods) {
+      console.warn("Firebase not ready or active.");
+      return;
     }
+
+    const db = window.firebaseDB;
+    const { collection, addDoc, serverTimestamp } = window.dbMethods;
+
+    try {
+      await addDoc(collection(db, "orders"), {
+        queueNumber: summary.position,
+        orderType: summary.type,
+        tableId: summary.table,
+        subtotal: stats.subtotal,
+        tax: stats.tax,
+        totalPaid: summary.total,
+        estimatedWait: summary.waitTime,
+        items: cartItems, 
+        createdAt: serverTimestamp()
+      });
+      console.log("🎉 Secure order synchronization with Firestore complete!");
+    } catch (error) {
+      console.error("Error writing document to Firestore: ", error);
+      this.ui.showToast("⚠️ Processed locally; cloud synchronization interrupted.");
+    }
+  }
+
+  _startQueueCountdown(orderSummary) {
+    if (this._queueTimerInterval) clearInterval(this._queueTimerInterval);
+    let remaining = orderSummary.waitTime * 60; 
+
+    const updateTimer = () => {
+      if (remaining <= 0) {
+        clearInterval(this._queueTimerInterval);
+        this._queueTimerInterval = null;
+        this.activeQueuePosition = null;
+        this.activeQueueWait = null;
+        this.ui.hideQueueBanner();
+        this.updateCartView();
+        this.ui.showToast("🎉 Your order is ready!");
+        return;
+      }
+      const mins = Math.floor(remaining / 60);
+      const secs = remaining % 60;
+      this.ui.updateQueueBanner(
+        orderSummary.position,
+        mins,
+        secs,
+        orderSummary.type,
+        orderSummary.table
+      );
+      remaining--;
+    };
+
+    updateTimer();
+    this._queueTimerInterval = setInterval(updateTimer, 1000);
   }
 }
 
-// ==========================================================
-// INSTANTIATE THE APP
-// ==========================================================
+// Instantiate App
 const app = new CafeController();
 
-window.openCart = () => app.ui.toggleCart(true);
+window.openCart  = () => app.ui.toggleCart(true);
 window.closeCart = () => app.ui.toggleCart(false);
 window.placeOrder = () => app.placeOrder();
-window.clearCart = () => app.cart.clear(); // The Observer handles the UI update!
+window.clearCart  = () => app.cart.clear();
 
 window.setCategory = (cat, btn) => {
   document.querySelectorAll('.cat-btn').forEach(b => b.classList.remove('active'));
   btn.classList.add('active');
   document.querySelectorAll('.menu-section').forEach(s => s.style.display = 'none');
   document.getElementById(cat).style.display = 'block';
+};
+
+window.setFilter = (tag, btn) => {
+  document.querySelectorAll('.filter-chip').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  document.querySelectorAll('.menu-card').forEach(card => {
+    if (tag === 'all') { card.style.display = ''; return; }
+    const tags = card.dataset.tags || '';
+    card.style.display = tags.includes(tag) ? '' : 'none';
+  });
 };

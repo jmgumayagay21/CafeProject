@@ -6,19 +6,18 @@ class UIManager {
   tagHTML(tags) {
     return tags.map(t => {
       if (t === 'popular') return `<span class="tag tag-p">★ Popular</span>`;
-      if (t === 'vegan') return `<span class="tag tag-v">🌿 Veg</span>`;
-      if (t === 'new') return `<span class="tag tag-n">✦ New</span>`;
+      if (t === 'vegan')   return `<span class="tag tag-v">🌿 Veg</span>`;
+      if (t === 'new')     return `<span class="tag tag-n">✦ New</span>`;
       return '';
     }).join('');
   }
 
   renderMenu(menuCatalog) {
-    ['breakfast', 'allday', 'mains', 'sweets'].forEach(sec => {
+    ['breakfast','allday','mains','sweets'].forEach(sec => {
       const grid = document.getElementById('grid-' + sec);
       if (!grid) return;
       grid.innerHTML = menuCatalog.getSection(sec).map(item => this.createFoodCard(item)).join('');
     });
-
     const drinksGrid = document.getElementById('grid-drinks');
     if (drinksGrid) {
       drinksGrid.innerHTML = menuCatalog.getSection('drinks').map(drink => this.createDrinkCard(drink)).join('');
@@ -70,19 +69,31 @@ class UIManager {
     `;
   }
 
-  updateCart(cart, queuePos, queueLen, selectedTableId, availableCount) {
+  updateCart(cart, queuePos, queueLen, selectedTableId, availableCount, orderType, activeWaitTime) {
     const stats = cart.getTotals();
     const items = cart.getItems();
-    const ids = Object.keys(items);
+    const ids   = Object.keys(items);
 
-    // 1. Update Badge
+    // Badge
     document.getElementById('cart-badge').textContent = stats.totalItems;
     document.getElementById('cart-badge').classList.toggle('show', stats.totalItems > 0);
 
-    // 2. Update Cart Items
+    // Queue nav info
+    const queueEl = document.getElementById('queue-info');
+    if (queuePos) {
+      queueEl.textContent = activeWaitTime
+        ? `#${queuePos} in queue · est. ${activeWaitTime} min`
+        : `#${queuePos} in queue`;
+    } else if (queueLen > 0) {
+      queueEl.textContent = `(${queueLen} in queue)`;
+    } else {
+      queueEl.textContent = '';
+    }
+
+    // Cart items
     const container = document.getElementById('cart-items');
     if (ids.length === 0) {
-      container.innerHTML = `<div class="empty-cart"><p>Your order is empty.</p></div>`;
+      container.innerHTML = `<div class="empty-cart"><div class="empty-icon">🛒</div><p>Your order is empty.<br>Add something delicious!</p></div>`;
     } else {
       container.innerHTML = ids.map(id => `
         <div class="cart-item">
@@ -99,103 +110,156 @@ class UIManager {
       `).join('');
     }
 
-    // 3. Update Totals
+    // Totals
     document.getElementById('subtotal-val').textContent = `₱${stats.subtotal.toLocaleString()}`;
-    document.getElementById('tax-val').textContent = `₱${stats.tax.toLocaleString()}`;
-    document.getElementById('total-val').textContent = `₱${stats.total.toLocaleString()}`;
+    document.getElementById('tax-val').textContent      = `₱${stats.tax.toLocaleString()}`;
+    document.getElementById('total-val').textContent    = `₱${stats.total.toLocaleString()}`;
     document.getElementById('estimate-val').textContent = `${stats.estimatedTime} min`;
 
-    // 4. Queue Info
-    const queueEl = document.getElementById('queue-info');
-    if (queuePos) queueEl.textContent = `#${queuePos} in queue`;
-    else if (queueLen > 0) queueEl.textContent = `(${queueLen} in queue)`;
-    else queueEl.textContent = '';
+    // ── ORDER TYPE SELECTOR + SEAT UI ──
+    const seatUI = document.getElementById('seat-selection-ui');
+    if (seatUI) {
+      const isDineIn  = orderType === 'dine-in';
+      const isPickup  = orderType === 'pickup';
 
-    // 5. Dynamic Seat Selection UI
-    const seatSelectionContainer = document.getElementById('seat-selection-ui');
-    if (seatSelectionContainer) {
-      if (availableCount === 0) {
-        seatSelectionContainer.innerHTML = `
-          <div style="background: rgba(208,96,96,0.1); border: 1px solid rgba(208,96,96,0.3); padding: 12px; border-radius: 8px; margin-bottom: 16px; text-align: center;">
-            <p style="color: #d06060; font-size: 12px; margin-bottom: 8px;">⚠️ All seats are currently occupied.</p>
-            <button class="clear-btn" style="margin:0; border-color: #d06060; color: #d06060;" onclick="app.setTakeout()">
-              ${selectedTableId === 'takeout' ? '✓ Takeaway Selected' : 'Order for Takeaway instead'}
+      // If all seats occupied, force pickup notice
+      if (availableCount === 0 && !isPickup) {
+        seatUI.innerHTML = `
+          <div class="order-type-notice">
+            <p>⚠️ All seats are currently occupied.</p>
+            <button class="order-type-btn order-type-btn--active" onclick="app.setOrderType('pickup')">
+              🛍️ Order for Pickup instead
+            </button>
+          </div>`;
+      } else {
+        // Build the two toggle buttons
+        const dineLabel = isDineIn && selectedTableId
+          ? `🪑 Table ${selectedTableId} — Change?`
+          : `🪑 Dine In`;
+        const pickupLabel = isPickup ? `✓ Store Pickup Selected` : `🛍️ Store Pickup`;
+
+        seatUI.innerHTML = `
+          <div class="order-type-toggle">
+            <button class="order-type-btn ${isDineIn ? 'order-type-btn--active' : ''}"
+                    onclick="app.setOrderType('dine-in')">
+              ${dineLabel}
+            </button>
+            <button class="order-type-btn ${isPickup ? 'order-type-btn--active order-type-btn--pickup' : ''}"
+                    onclick="app.setOrderType('pickup')">
+              ${pickupLabel}
             </button>
           </div>
-        `;
-      } else {
-        let seatText = "🪑 Select a Seat";
-        if (selectedTableId === 'takeout') seatText = "🛍️ Takeaway Selected (Change?)";
-        else if (selectedTableId) seatText = `🪑 Table ${selectedTableId} Selected (Change?)`;
-
-        seatSelectionContainer.innerHTML = `
-          <button class="clear-btn" style="margin-top: 0; margin-bottom: 16px; border-color: var(--gold-dim); color: var(--gold);" 
-                  onclick="app.ui.toggleCart(false); app.ui.toggleSeatingModal(true);">
-            ${seatText}
-          </button>
+          ${isDineIn && !selectedTableId ? `<p class="seat-hint">👆 Select a table from the floor plan</p>` : ''}
         `;
       }
     }
 
-    // 6. Disable checkout if no seat/takeout is selected OR cart is empty
+    // Checkout button — disabled if no selection or empty cart
     const checkoutBtn = document.getElementById('checkout-btn');
     if (checkoutBtn) {
       checkoutBtn.disabled = (ids.length === 0 || !selectedTableId);
     }
   }
 
-  // --- THESE WERE THE MISSING METHODS ---
-
   renderSeating(seatingManager, selectedTableId) {
     const container = document.getElementById('floor-plan');
     if (!container) return;
 
-    const tables = seatingManager.getTables();
+    const tables      = seatingManager.getTables();
     const smallTables = tables.filter(t => t.type === 'small');
     const largeTables = tables.filter(t => t.type === 'large');
-    const barTables = tables.filter(t => t.type === 'bar');
+    const barTables   = tables.filter(t => t.type === 'bar');
+    const available   = seatingManager.getAvailableCount();
+    const total       = tables.length;
+    const occupied    = total - available;
 
     const createTableHTML = (t) => {
       let statusClass = 'available';
-      if (t.isOccupied) statusClass = 'occupied';
-      else if (t.id === selectedTableId) statusClass = 'selected';
+      if (t.isOccupied)                   statusClass = 'occupied';
+      else if (t.id === selectedTableId)  statusClass = 'selected';
+
+      const label = t.type === 'small' ? `S${t.id.replace('t-s','')}`
+                  : t.type === 'large' ? `L${t.id.replace('t-L','')}`
+                  : `B${t.id.replace('b','')}`; 
+
+      const capacityIcon = t.type === 'bar' ? '' : `<span class="time-stamp" style="opacity:0.65;font-size:8px">👤×${t.capacity}</span>`;
 
       return `
-        <div class="table-node table-${t.type} ${statusClass}" 
-             onclick="app.selectTable('${t.id}')">
-          <span>${t.id}</span>
-          ${t.isOccupied ? `<span class="time-stamp">${t.getOccupiedTimeString()}</span>` : ''}
-        </div>
-      `;
+        <div class="table-node table-${t.type} ${statusClass}"
+             onclick="app.selectTable('${t.id}')"
+             title="${statusClass === 'occupied' ? `Occupied since ${t.getOccupiedTimeString()}` : statusClass === 'selected' ? 'Your table' : `Available · ${t.capacity} seats`}">
+          <span class="table-id">${label}</span>
+          ${t.isOccupied
+            ? `<span class="time-stamp">since ${t.getOccupiedTimeString()}</span>`
+            : (t.id === selectedTableId ? '' : capacityIcon)
+          }
+        </div>`;
     };
 
+    // Stats bar
+    const statsBar = `
+      <div style="display:flex;gap:10px;align-items:center;margin-bottom:14px;font-family:'Outfit',sans-serif;flex-wrap:wrap;">
+        <div style="flex:1;min-width:0;">
+          <div style="font-size:9px;letter-spacing:2px;text-transform:uppercase;color:rgba(245,237,216,0.35);font-weight:600;margin-bottom:6px;">Table Status</div>
+          <div style="display:flex;gap:2px;height:4px;border-radius:4px;overflow:hidden;background:rgba(255,255,255,0.06);">
+            <div style="height:4px;background:rgba(126,175,102,0.55);width:${Math.round(available/total*100)}%;transition:width 0.4s;"></div>
+            <div style="height:4px;background:rgba(196,98,45,0.5);width:${Math.round(occupied/total*100)}%;transition:width 0.4s;"></div>
+          </div>
+        </div>
+        <div style="font-size:11px;color:rgba(126,175,102,0.85);font-weight:500;white-space:nowrap;">${available} open</div>
+        <div style="font-size:11px;color:rgba(196,98,45,0.75);font-weight:500;white-space:nowrap;">${occupied} taken</div>
+      </div>`;
+
+    // Legend
+    const legend = `
+      <div class="fp-legend">
+        <div class="fp-legend-item"><div class="fp-legend-dot available"></div> Available</div>
+        <div class="fp-legend-item"><div class="fp-legend-dot occupied"></div> Occupied</div>
+        <div class="fp-legend-item"><div class="fp-legend-dot selected"></div> Your Table</div>
+        <div class="fp-legend-item"><div class="fp-legend-dot bar" style="border-radius:50%"></div> Bar Stool</div>
+      </div>`;
+
     container.innerHTML = `
-      <div class="fp-column" style="margin-top: 40px;">${smallTables.map(createTableHTML).join('')}</div>
-      <div class="fp-column">
-        <div style="background: #1d5f7b; color: white; text-align: center; padding: 10px; border-radius: 5px; font-size: 12px; margin-bottom: 20px;">Cashier – Order Pick Up</div>
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">${largeTables.map(createTableHTML).join('')}</div>
-      </div>
-      <div class="fp-column" style="align-items: center;">${barTables.map(createTableHTML).join('')}</div>
-    `;
+      <div class="floor-plan-wrap">
+        ${statsBar}
+        ${legend}
+        <div class="floor-texture">
+          <div class="floor-plan-grid">
+            <div class="fp-column">
+              <div class="fp-zone-label">Window<br>Tables</div>
+              ${smallTables.map(createTableHTML).join('')}
+            </div>
+            <div class="fp-column">
+              <div class="fp-cashier">☕ Cashier · Order Pick-up</div>
+              <div class="fp-zone-label">Main Dining</div>
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+                ${largeTables.map(createTableHTML).join('')}
+              </div>
+            </div>
+            <div class="fp-column" style="align-items:center">
+              <div class="fp-zone-label" style="text-align:center">Bar</div>
+              ${barTables.map(createTableHTML).join('')}
+            </div>
+          </div>
+        </div>
+      </div>`;
 
     const seatCountBtn = document.getElementById('seat-count-btn');
-    if(seatCountBtn) {
-        seatCountBtn.textContent = `${seatingManager.getAvailableCount()} Seats Available`;
-    }
+    if (seatCountBtn) seatCountBtn.textContent = `${available} Seats Available`;
   }
 
   toggleCart(forceState) {
-    const drawer = document.getElementById('cart-drawer');
+    const drawer  = document.getElementById('cart-drawer');
     const overlay = document.getElementById('overlay');
-    if(drawer) drawer.classList.toggle('open', forceState);
-    if(overlay) overlay.classList.toggle('open', forceState);
+    if (drawer)  drawer.classList.toggle('open', forceState);
+    if (overlay) overlay.classList.toggle('open', forceState);
   }
 
   toggleSeatingModal(forceState) {
-    const modal = document.getElementById('seating-modal');
+    const modal   = document.getElementById('seating-modal');
     const overlay = document.getElementById('overlay');
-    if(modal) modal.classList.toggle('open', forceState);
-    if(overlay) overlay.classList.toggle('open', forceState);
+    if (modal)   modal.classList.toggle('open', forceState);
+    if (overlay) overlay.classList.toggle('open', forceState);
   }
 
   showToast(msg) {
@@ -203,6 +267,54 @@ class UIManager {
     if (!t) return;
     t.textContent = msg;
     t.classList.add('show');
-    setTimeout(() => t.classList.remove('show'), 3000);
+    setTimeout(() => t.classList.remove('show'), 3500);
+  }
+
+  // ── ORDER CONFIRMATION MODAL ──
+  showOrderConfirmation(summary) {
+    const modal = document.getElementById('order-confirm-modal');
+    if (!modal) return;
+    const locationLine = summary.type === 'pickup'
+      ? '🛍️ Pickup at counter'
+      : `🪑 Table ${summary.table}`;
+    document.getElementById('oc-queue').textContent  = `#${summary.position}`;
+    document.getElementById('oc-location').textContent = locationLine;
+    document.getElementById('oc-total').textContent  = `₱${summary.total.toLocaleString()}`;
+    modal.classList.add('open');
+    document.getElementById('overlay').classList.add('open');
+  }
+
+  hideOrderConfirmation() {
+    const modal = document.getElementById('order-confirm-modal');
+    if (modal) modal.classList.remove('open');
+    document.getElementById('overlay').classList.remove('open');
+  }
+
+  // ── QUEUE BANNER (live countdown) ──
+  updateQueueBanner(position, mins, secs, type, table) {
+    let banner = document.getElementById('queue-banner');
+    if (!banner) {
+      banner = document.createElement('div');
+      banner.id = 'queue-banner';
+      banner.className = 'queue-banner';
+      document.body.appendChild(banner);
+    }
+    const pad = n => String(n).padStart(2, '0');
+    const loc = type === 'pickup' ? 'Pickup at counter' : `Table ${table}`;
+    banner.innerHTML = `
+      <div class="qb-inner">
+        <span class="qb-badge">#${position}</span>
+        <div class="qb-info">
+          <span class="qb-label">Your order · ${loc}</span>
+          <span class="qb-timer">${pad(mins)}<em>:</em>${pad(secs)}<span class="qb-unit"> remaining</span></span>
+        </div>
+        <button class="qb-close" onclick="app.ui.hideQueueBanner()">✕</button>
+      </div>`;
+    banner.classList.add('visible');
+  }
+
+  hideQueueBanner() {
+    const banner = document.getElementById('queue-banner');
+    if (banner) banner.classList.remove('visible');
   }
 }

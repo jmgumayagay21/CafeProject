@@ -459,10 +459,59 @@ body{font-family:'Outfit',sans-serif;background:var(--bg);color:var(--text);min-
   .hero-info{gap:28px;flex-wrap:wrap;justify-content:center}
 }
 
-/* ── FLOOR PLAN MODAL ── */
+/* ══════════════════════════════════════════
+   FLOOR PLAN — Café Roo (Dark Theme)
+   ══════════════════════════════════════════ */
+
+/* Seating modal — dark surface matching the rest of the UI */
+#seating-modal .cart-items {
+  background: var(--surface) !important;
+  padding: 28px 24px !important;
+  overflow-y: auto;
+}
+
+.floor-plan-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* ── Zone Labels — match cashier pill style ── */
+.fp-zone-label {
+  font-family: 'Outfit', sans-serif;
+  font-size: 9px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--gold);
+  font-weight: 600;
+  margin-bottom: 8px;
+  padding: 7px 12px;
+  border-radius: 8px;
+  background: var(--surface3);
+  border: 0.5px solid rgba(212,168,83,0.2);
+  text-align: center;
+}
+
+/* ── Cashier Bar ── */
+.fp-cashier {
+  background: var(--surface3);
+  color: var(--gold);
+  text-align: center;
+  padding: 11px 20px;
+  border-radius: 8px;
+  font-family: 'Outfit', sans-serif;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  border: 0.5px solid rgba(212,168,83,0.2);
+  margin-bottom: 4px;
+}
+
+/* ── Floor Plan Layout ── */
 .floor-plan-grid {
   display: grid;
-  grid-template-columns: 100px 1fr 60px;
+  grid-template-columns: 110px 1fr 64px;
   gap: 20px;
   align-items: start;
 }
@@ -470,49 +519,470 @@ body{font-family:'Outfit',sans-serif;background:var(--bg);color:var(--text);min-
 .fp-column {
   display: flex;
   flex-direction: column;
-  gap: 15px;
+  gap: 10px;
 }
 
+/* ── Legend ── */
+.fp-legend {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+  justify-content: center;
+  padding: 9px 14px;
+  background: var(--surface2);
+  border-radius: 8px;
+  border: 0.5px solid var(--border);
+  margin-bottom: 2px;
+  flex-wrap: wrap;
+}
+
+.fp-legend-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-family: 'Outfit', sans-serif;
+  font-size: 10px;
+  font-weight: 500;
+  color: var(--text-dim);
+  letter-spacing: 0.5px;
+}
+
+.fp-legend-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 3px;
+  flex-shrink: 0;
+}
+.fp-legend-dot.available { background: rgba(90,122,74,0.5); border: 1px solid rgba(126,175,102,0.5); }
+.fp-legend-dot.occupied  { background: rgba(196,98,45,0.5); border: 1px solid rgba(196,98,45,0.6); }
+.fp-legend-dot.selected  { background: rgba(212,168,83,0.5); border: 1px solid rgba(212,168,83,0.7); }
+.fp-legend-dot.bar       { background: var(--surface3); border: 1px solid var(--border2); border-radius: 50%; }
+
+/* ── Table Nodes — Base ── */
 .table-node {
   border-radius: 8px;
-  border: 2px solid #333;
   cursor: pointer;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   font-family: 'Outfit', sans-serif;
-  color: #111;
   font-size: 11px;
   font-weight: 600;
-  transition: transform 0.1s;
+  letter-spacing: 0.3px;
+  transition: transform 0.18s ease, box-shadow 0.18s ease, background 0.2s ease, border-color 0.2s;
+  position: relative;
+  user-select: none;
 }
 
-.table-node:active { transform: scale(0.95); }
+.table-node:hover:not(.occupied) {
+  transform: translateY(-1px);
+}
+.table-node:active:not(.occupied) { transform: scale(0.97); }
 
-/*Added 5/23 - For Table Add this class right under your .occupied class in your CSS file so the selected table highlights in Gold.
-/* Status Colors */
-.table-node.available { background-color: #5A7A4A; color: white; }
-.table-node.occupied { background-color: #d06060; color: white; cursor: not-allowed; }
-
-/* NEW: Selected State */
-.table-node.selected { 
-  background-color: #D4A853; /* Gold */
-  color: #0f0c09; 
-  border-color: #F0CB7A; 
-  transform: scale(1.05); 
-  box-shadow: 0 0 10px rgba(212,168,83,0.5); 
+/* ── Available ── */
+.table-node.available {
+  background: var(--surface2);
+  color: var(--text-muted);
+  border: 0.5px solid var(--border2);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+  overflow: hidden;
+}
+.table-node.available::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 10px;
+  height: 10px;
+  background: var(--green-light);
+  clip-path: polygon(0 0, 100% 0, 0 100%);
+  opacity: 0.85;
+}
+.table-node.available:hover {
+  border-color: rgba(126,175,102,0.5);
+  color: var(--green-light);
+  background: var(--surface3);
+  box-shadow: 0 4px 16px rgba(0,0,0,0.3);
 }
 
+/* ── Occupied ── */
+.table-node.occupied {
+  background: var(--surface2);
+  color: var(--text-dim);
+  border: 0.5px solid rgba(196,98,45,0.25);
+  cursor: not-allowed;
+  opacity: 0.7;
+  overflow: hidden;
+}
+.table-node.occupied::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 10px;
+  height: 10px;
+  background: var(--terra-light);
+  clip-path: polygon(0 0, 100% 0, 0 100%);
+  opacity: 0.85;
+}
+.table-node.occupied::after {
+  content: '✕';
+  position: absolute;
+  top: 4px;
+  right: 6px;
+  font-size: 8px;
+  color: var(--terra-light);
+  opacity: 0.7;
+  font-weight: 400;
+}
 
-/* Table Shapes */
-.table-small { width: 80px; height: 60px; }
-.table-large { width: 140px; height: 60px; }
-.table-bar { width: 40px; height: 40px; border-radius: 50%; }
-
-.time-stamp {
+/* ── Selected ── */
+.table-node.selected {
+  background: var(--gold-dim);
+  color: var(--gold);
+  border: 0.5px solid rgba(212,168,83,0.5);
+  box-shadow: 0 0 0 1.5px rgba(212,168,83,0.3), 0 4px 20px rgba(212,168,83,0.15);
+  transform: translateY(-1px);
+  overflow: hidden;
+}
+.table-node.selected::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 10px;
+  height: 10px;
+  background: var(--gold);
+  clip-path: polygon(0 0, 100% 0, 0 100%);
+  opacity: 0.9;
+}
+.table-node.selected::after {
+  content: '✓';
+  position: absolute;
+  top: 4px;
+  right: 6px;
   font-size: 9px;
+  color: var(--gold);
+  opacity: 0.8;
+  font-weight: 700;
+}
+
+/* ── Bar stool corners — circular so use a dot instead of clip-path ── */
+.table-bar.available::before,
+.table-bar.occupied::before,
+.table-bar.selected::before {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  clip-path: none;
+  top: 3px;
+  left: 3px;
+}
+.table-bar.available::before  { background: var(--green-light); }
+.table-bar.occupied::before   { background: var(--terra-light); }
+.table-bar.selected::before   { background: var(--gold); }
+
+/* ── Table Shapes ── */
+.table-small {
+  width: 84px;
+  height: 62px;
+  border-radius: 8px;
+}
+
+.table-large {
+  width: 100%;
+  height: 58px;
+  border-radius: 8px;
+}
+
+/* Bar stools — round */
+.table-bar {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  font-size: 10px;
+}
+
+.table-bar.available {
+  background: var(--surface2);
+  border: 0.5px solid var(--border2);
+  color: var(--text-dim);
+  overflow: hidden;
+}
+.table-bar.available:hover {
+  border-color: rgba(126,175,102,0.5);
+  color: var(--green-light);
+  background: var(--surface3);
+}
+.table-bar.occupied {
+  background: var(--surface2);
+  border: 0.5px solid rgba(196,98,45,0.25);
+  color: var(--text-dim);
+  opacity: 0.7;
+  overflow: hidden;
+}
+.table-bar.selected {
+  background: var(--gold-dim);
+  border: 0.5px solid rgba(212,168,83,0.5);
+  color: var(--gold);
+  box-shadow: 0 0 0 1.5px rgba(212,168,83,0.3);
+  overflow: hidden;
+}
+
+/* ── Timestamp on occupied tables ── */
+.time-stamp {
+  font-size: 8.5px;
   font-weight: 400;
   margin-top: 2px;
-  opacity: 0.9;
+  opacity: 0.7;
+  letter-spacing: 0.2px;
+  color: var(--terra-light);
+}
+
+/* ── Table ID label ── */
+.table-id {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.2px;
+  line-height: 1;
+}
+
+/* ── Floor texture — clean dark surface, no grid ── */
+.floor-texture {
+  position: relative;
+  background: var(--surface2);
+  padding: 20px;
+  border-radius: 10px;
+  border: 0.5px solid var(--border);
+}
+/* ── ORDER TYPE TOGGLE ── */
+.order-type-toggle {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.order-type-btn {
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 0.5px solid var(--border2);
+  background: transparent;
+  color: var(--text-muted);
+  font-family: 'Outfit', sans-serif;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+  text-align: center;
+  line-height: 1.4;
+}
+
+.order-type-btn:hover {
+  border-color: rgba(212,168,83,0.4);
+  color: var(--cream);
+  background: var(--gold-dim);
+}
+
+.order-type-btn--active {
+  border-color: var(--gold);
+  color: var(--gold);
+  background: var(--gold-dim);
+}
+
+.order-type-btn--pickup.order-type-btn--active {
+  border-color: rgba(90,122,74,0.6);
+  color: var(--green-light);
+  background: rgba(90,122,74,0.12);
+}
+
+.order-type-notice {
+  background: rgba(208,96,96,0.1);
+  border: 1px solid rgba(208,96,96,0.3);
+  padding: 12px;
+  border-radius: 10px;
+  text-align: center;
+  margin-bottom: 4px;
+}
+.order-type-notice p {
+  color: #d06060;
+  font-size: 12px;
+  margin-bottom: 8px;
+}
+
+.seat-hint {
+  font-size: 11px;
+  color: var(--text-dim);
+  text-align: center;
+  margin-top: 4px;
+  margin-bottom: 4px;
+  font-style: italic;
+}
+
+/* ── QUEUE BANNER (live countdown) ── */
+.queue-banner {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 800;
+  transform: translateY(100%);
+  transition: transform 0.4s cubic-bezier(0.4,0,0.2,1);
+}
+.queue-banner.visible {
+  transform: translateY(0);
+}
+.qb-inner {
+  max-width: 600px;
+  margin: 0 auto 0;
+  background: var(--surface2);
+  border-top: 0.5px solid var(--border2);
+  border-left: 0.5px solid var(--border);
+  border-right: 0.5px solid var(--border);
+  border-radius: 16px 16px 0 0;
+  padding: 16px 24px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  box-shadow: 0 -8px 32px rgba(0,0,0,0.4);
+}
+.qb-badge {
+  flex-shrink: 0;
+  background: var(--gold);
+  color: var(--bg);
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 22px;
+  font-weight: 700;
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.qb-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.qb-label {
+  font-size: 11px;
+  color: var(--text-dim);
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+}
+.qb-timer {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 28px;
+  font-weight: 700;
+  color: var(--gold-light);
+  line-height: 1;
+  letter-spacing: -0.5px;
+}
+.qb-timer em {
+  font-style: normal;
+  opacity: 0.5;
+  animation: blink 1s step-end infinite;
+}
+.qb-unit {
+  font-family: 'Outfit', sans-serif;
+  font-size: 11px;
+  font-weight: 400;
+  color: var(--text-dim);
+  margin-left: 4px;
+  vertical-align: middle;
+}
+.qb-close {
+  flex-shrink: 0;
+  width: 30px; height: 30px;
+  border-radius: 50%;
+  border: 0.5px solid var(--border);
+  background: none;
+  color: var(--text-dim);
+  font-size: 14px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+}
+.qb-close:hover { background: var(--surface3); color: var(--cream); }
+
+@keyframes blink { 50% { opacity: 0; } }
+
+/* ── ORDER CONFIRMATION MODAL ── */
+.order-confirm-modal {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -48%) scale(0.92);
+  z-index: 920;
+  opacity: 0;
+  pointer-events: none;
+  transition: all 0.3s cubic-bezier(0.4,0,0.2,1);
+  width: 340px;
+  max-width: calc(100vw - 32px);
+}
+.order-confirm-modal.open {
+  opacity: 1;
+  pointer-events: all;
+  transform: translate(-50%, -50%) scale(1);
+}
+.ocm-inner {
+  background: var(--surface2);
+  border: 0.5px solid var(--border2);
+  border-radius: 20px;
+  padding: 36px 32px 28px;
+  text-align: center;
+  box-shadow: 0 24px 80px rgba(0,0,0,0.6);
+}
+.ocm-icon {
+  font-size: 48px;
+  margin-bottom: 12px;
+  animation: pop 0.4s ease;
+}
+.ocm-title {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 32px;
+  font-weight: 700;
+  color: var(--cream);
+  margin-bottom: 4px;
+}
+.ocm-sub {
+  font-size: 13px;
+  color: var(--text-dim);
+  margin-bottom: 16px;
+}
+.ocm-badge {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 52px;
+  font-weight: 700;
+  color: var(--gold);
+  line-height: 1;
+  margin-bottom: 20px;
+}
+.ocm-details {
+  background: rgba(255,255,255,0.03);
+  border: 0.5px solid var(--border);
+  border-radius: 12px;
+  padding: 14px 18px;
+  margin-bottom: 16px;
+}
+.ocm-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 13px;
+  padding: 5px 0;
+}
+.ocm-row:not(:last-child) { border-bottom: 0.5px solid var(--border); }
+.ocm-row span { color: var(--text-dim); }
+.ocm-row strong { color: var(--cream); font-weight: 500; }
+.ocm-timer-label {
+  font-size: 11px;
+  color: var(--text-dim);
+  margin-bottom: 4px;
+  font-style: italic;
 }

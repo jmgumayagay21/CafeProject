@@ -33,7 +33,6 @@
 </section>
  
 <nav class="sticky-nav" id="menu-start">
-  <div class="nav-logo">Roo</div>
   <div class="nav-cats">
     <button class="cat-btn active" onclick="setCategory('breakfast',this)">Breakfast</button>
     <button class="cat-btn" onclick="setCategory('allday',this)">All Day</button>
@@ -151,7 +150,7 @@
   <p style="font-size:12px;color:var(--text-dim)">Prices inclusive of VAT · Menu changes seasonally</p>
 </footer>
  
-<div class="overlay" id="overlay" onclick="closeCart()"></div>
+<div class="overlay" id="overlay" onclick="closeCart(); app.ui.toggleSeatingModal(false); app.ui.hideOrderConfirmation();"></div>
  
 <div class="cart-drawer" id="cart-drawer">
   <div class="drawer-head">
@@ -184,11 +183,8 @@
       <span class="estimate-label">Est. Time</span>
       <span class="estimate-val" id="estimate-val">0 min</span>
     </div>
-    
-    <button class="clear-btn" style="margin-top: 0; margin-bottom: 8px; border-color: var(--gold-dim); color: var(--gold);" 
-            onclick="app.ui.toggleCart(false); app.ui.toggleSeatingModal(true);">
-      🪑 See available seats & floor plan
-    </button>
+
+    <div id="seat-selection-ui" style="margin-bottom:12px;"></div>
 
     <button class="checkout-btn" id="checkout-btn" onclick="placeOrder()" disabled>
       Place Order →
@@ -197,28 +193,68 @@
   </div>
 </div>
  
-<div class="toast" id="toast">✓ Order placed! See you soon at Cafe Roo 🎉</div>
+<div class="toast" id="toast"></div>
+
+<div class="order-confirm-modal" id="order-confirm-modal">
+  <div class="ocm-inner">
+    <div class="ocm-icon">🎉</div>
+    <h2 class="ocm-title">Order Placed!</h2>
+    <p class="ocm-sub">You're in the queue</p>
+    <div class="ocm-badge" id="oc-queue">#1</div>
+    <div class="ocm-details">
+      <div class="ocm-row"><span>Location</span><strong id="oc-location">—</strong></div>
+      <div class="ocm-row"><span>Total Paid</span><strong id="oc-total">₱0</strong></div>
+    </div>
+    <p class="ocm-timer-label">Estimated wait shown in the live banner below ↓</p>
+    <button class="checkout-btn" style="margin-top:8px" onclick="app.ui.hideOrderConfirmation()">Got it!</button>
+  </div>
+</div>
 
 <div class="cart-drawer" id="seating-modal" style="width: 600px;">
   <div class="drawer-head">
     <div>
       <h2>Floor Plan</h2>
-      <p class="queue-position">Click a table to change its status.</p>
+      <p class="queue-position">Tap a table to select your seat.</p>
     </div>
-    <button class="close-btn" onclick="app.ui.toggleSeatingModal(false)">✕</button>
+    <div style="display:flex;gap:8px;align-items:center">
+      <button class="clear-btn" style="width:auto;padding:8px 14px;margin:0;font-size:11px;border-color:var(--gold-dim);color:var(--gold);"
+              onclick="app.ui.toggleSeatingModal(false); app.ui.toggleCart(true);">
+        ← Back to Order
+      </button>
+      <button class="close-btn" onclick="app.ui.toggleSeatingModal(false)">✕</button>
+    </div>
   </div>
   
-  <div class="cart-items" style="background: #F5EDD8; padding: 20px;">
-    <div id="floor-plan" class="floor-plan-grid">
-      </div>
+  <div class="cart-items">
+    <div id="floor-plan"></div>
   </div>
 </div>
    
-
-
 <script src="models.js"></script>
 <script src="managers.js"></script>
 <script src="view.js"></script>
 <script src="controller.js"></script>
+
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js";
+  import { getFirestore, collection, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
+
+  const firebaseConfig = {
+    apiKey: "AIzaSyBKHVnaOw_RBd5x3D9f_vbuogMVKJTLSaQ",
+    authDomain: "caferoo-1169c.firebaseapp.com",
+    projectId: "caferoo-1169c",
+    storageBucket: "caferoo-1169c.firebasestorage.app",
+    messagingSenderId: "38154868920",
+    appId: "1:38154868920:web:a686c872a8718ee97cfc4d",
+    measurementId: "G-J9RFPP0HQN"
+  };
+
+  const firebaseApp = initializeApp(firebaseConfig);
+  const db = getFirestore(firebaseApp);
+
+  // Bind to global scope so controller.js can interact with database operations
+  window.firebaseDB = db;
+  window.dbMethods = { collection, addDoc, serverTimestamp };
+</script>
 </body>
 </html>
