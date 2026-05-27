@@ -49,6 +49,18 @@ class MenuCatalog {
       ]
     };
   }
+  
+updateFromCloud(cloudMenu) {
+    // Check if Firebase actually sent us any items
+    const hasCloudItems = Object.values(cloudMenu).some(category => category.length > 0);
+    
+    if (hasCloudItems) {
+      this.categories = cloudMenu; // Use live Firebase menu
+    } else {
+      console.log("Firebase is currently empty. Using default offline menu.");
+    }
+  }
+
  // Update 5/26: FIXED: Added real-time layout adjustment engine for hardcoded special cards
   updateSpecialItem(stocksCount) {
     this.specialItem.stocks = stocksCount;

@@ -34,7 +34,8 @@ class CafeController {
       this.selectedTableId,
       this.seating.getAvailableCount(),
       this.orderType,
-      this.activeQueueWait
+      this.activeQueueWait,
+      this.selectedPaymentMethod // NEW: Pass the payment method securely
     );
     this.ui.renderSeating(this.seating, this.selectedTableId);
   }
@@ -107,12 +108,11 @@ class CafeController {
 
   // ─── ORDER TYPE ───
 
+  // ─── ORDER TYPE ───
+
+  // ─── ORDER TYPE ───
+
   setOrderType(type) {
-    //Update 5/27 - To set the payment method and trigger cart view updates for Place Order button state evaluation
-    setPaymentMethod(method) 
-    this.selectedPaymentMethod = method ? method : null;
-    this.updateCartView(); // Renders state updates to evaluate the Place Order button activation status
-  
     this.orderType = type; // 'dine-in' | 'pickup'
     if (type === 'pickup') {
       this.selectedTableId = 'takeout';
@@ -122,6 +122,12 @@ class CafeController {
       this.ui.toggleSeatingModal(true);
     }
     this.updateCartView();
+  }
+
+  // Ensure this method is defined separately below setOrderType
+  setPaymentMethod(method) {
+    this.selectedPaymentMethod = method ? method : null;
+    this.updateCartView(); 
   }
 
   // ─── SEATING ───
@@ -290,11 +296,14 @@ class CafeController {
 
 // Instantiate App
 const app = new CafeController();
+window.app = app; // Expose globally immediately
 
-window.openCart  = () => app.ui.toggleCart(true);
-window.closeCart = () => app.ui.toggleCart(false);
-window.placeOrder = () => app.placeOrder();
-window.clearCart  = () => app.cart.clear();
+// Bind UI actions safely to the window
+window.openCart  = () => window.app.ui.toggleCart(true);
+window.closeCart = () => window.app.ui.toggleCart(false);
+window.placeOrder = () => window.app.placeOrder();
+window.clearCart  = () => window.app.cart.clear();
+window.openSeating = () => window.app.ui.toggleSeatingModal(true);
 
 window.setCategory = (cat, btn) => {
   document.querySelectorAll('.cat-btn').forEach(b => b.classList.remove('active'));
@@ -309,6 +318,6 @@ window.setFilter = (tag, btn) => {
   document.querySelectorAll('.menu-card').forEach(card => {
     if (tag === 'all') { card.style.display = ''; return; }
     const tags = card.dataset.tags || '';
-    card.style.display = tags.includes(tag) ? '' : 'none';
+    card.style.display = tags.includes(tag) ? '' : 'none';  
   });
 };

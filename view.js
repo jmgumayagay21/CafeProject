@@ -81,14 +81,35 @@ class UIManager {
     `;
   }
 
-  updateCart(cart, queuePos, queueLen, selectedTableId, availableCount, orderType, activeWaitTime) {
+  // NEW: Add selectedPaymentMethod to the parameters
+  updateCart(cart, queuePos, queueLen, selectedTableId, availableCount, orderType, activeWaitTime, selectedPaymentMethod) {
+    // 1. Ensure these three lines are still intact!
     const stats = cart.getTotals();
     const items = cart.getItems();
     const ids   = Object.keys(items);
 
-    // Badge
-    document.getElementById('cart-badge').textContent = stats.totalItems;
-    document.getElementById('cart-badge').classList.toggle('show', stats.totalItems > 0);
+    // 2. Badge (Updated with safe null checks to clear editor warnings)
+    const badgeEl = document.getElementById('cart-badge');
+    if (badgeEl) {
+      badgeEl.textContent = stats.totalItems;
+      badgeEl.classList.toggle('show', stats.totalItems > 0);
+    }
+
+    // 3. Queue nav info (Also updated with safe null checks)
+    const queueEl = document.getElementById('queue-info');
+    if (queueEl) {
+      if (queuePos) {
+        queueEl.textContent = activeWaitTime
+          ? `#${queuePos} in queue · est. ${activeWaitTime} min`
+          : `#${queuePos} in queue`;
+      } else if (queueLen > 0) {
+        queueEl.textContent = `(${queueLen} in queue)`;
+      } else {
+        queueEl.textContent = '';
+      }
+    }
+
+    // ... (Keep the rest of your cart items and totals code below here) ...
 
     // Queue nav info
     const queueEl = document.getElementById('queue-info');
