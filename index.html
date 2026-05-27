@@ -185,6 +185,22 @@
     </div>
 
     <div id="seat-selection-ui" style="margin-bottom:12px;"></div>
+    
+
+   <div id="seat-selection-ui" style="margin-bottom:12px;"></div>
+
+    <div class="payment-method-row" style="margin-bottom: 12px;">
+      <label for="payment-method" style="font-size: 11px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 1px; display: block; margin-bottom: 6px;">
+        💳 Choose Payment Option
+      </label>
+      <select id="payment-method" class="sugar-select" style="width: 100%; border-color: var(--border2); background: var(--surface2);" onchange="app.setPaymentMethod(this.value)">
+        <option value="">-- Select Method --</option>
+        <option value="Cash">💵 Cash at Counter</option>
+        <option value="GCash QR">📱 GCash (QR Code Scan)</option>
+        <option value="Credit Card">💳 Credit Card</option>
+        <option value="Debit Card">💳 Debit Card</option>
+      </select>
+    </div>
 
     <button class="checkout-btn" id="checkout-btn" onclick="placeOrder()" disabled>
       Place Order →

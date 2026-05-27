@@ -8,8 +8,10 @@ class CafeController {
     
     this.activeQueuePosition = null;
     this.activeQueueWait = null;
+    // Update 5/26 Add payment method tracking and selection state
     this.selectedTableId = null;
     this.orderType = null; // 'dine-in' | 'pickup'
+    this.selectedPaymentMethod = null; // NEW: Track the ongoing payment selection choice
     this._queueTimerInterval = null;
 
     this.cart.subscribe(() => {
@@ -106,6 +108,11 @@ class CafeController {
   // ─── ORDER TYPE ───
 
   setOrderType(type) {
+    //Update 5/27 - To set the payment method and trigger cart view updates for Place Order button state evaluation
+    setPaymentMethod(method) 
+    this.selectedPaymentMethod = method ? method : null;
+    this.updateCartView(); // Renders state updates to evaluate the Place Order button activation status
+  
     this.orderType = type; // 'dine-in' | 'pickup'
     if (type === 'pickup') {
       this.selectedTableId = 'takeout';
@@ -145,6 +152,10 @@ class CafeController {
       this.ui.showToast("⚠️ Please select a seat or choose Pickup before ordering.");
       return;
     }
+    if (!this.selectedPaymentMethod) {
+      this.ui.showToast("⚠️ Please select your payment method.");
+      return;
+    }
 
     const stats = this.cart.getTotals();
     const newOrder = new Order({...this.cart.getItems()}, stats.estimatedTime);
@@ -161,19 +172,25 @@ class CafeController {
       waitTime,
       type: this.orderType,
       table: this.selectedTableId,
-      total: stats.total
+      total: stats.total,
+      paymentMethod: this.selectedPaymentMethod // NEW: Added to order summary context
     };
 
-     // Firebase Data Transmit Call with stock checking transaction
+    // Transmit summary data down to Firebase including the verified selected payment selection
     this.saveOrderToFirebase(orderSummary, stats, newOrder.items);
 
     this.cart.clear();
     this.selectedTableId = null;
     this.orderType = null;
+    this.selectedPaymentMethod = null; // Reset payment state string target cleanly
+
+    // Reset the select element drop option display interface value back to default
+    const pSelector = document.getElementById('payment-method');
+    if (pSelector) pSelector.value = "";
 
     this.ui.toggleCart(false);
-    this._startQueueCountdown(orderSummary);
     this.ui.showOrderConfirmation(orderSummary);
+    this._startQueueCountdown(orderSummary);
   }
 
   // CLOUD ATOMIC TRANSACTIONS: Reads dynamic states, blocks invalid buys, updates fields safely
@@ -217,7 +234,7 @@ class CafeController {
           transaction.update(update.ref, { stocks: update.newStock });
         }
 
-        // Write order receipt log entry to database
+        // Update 5/27: Write order receipt log entry to database
         await addDoc(collection(db, "orders"), {
           queueNumber: summary.position,
           orderType: summary.type,
@@ -225,6 +242,7 @@ class CafeController {
           subtotal: stats.subtotal,
           tax: stats.tax,
           totalPaid: summary.total,
+          paymentMethod: summary.paymentMethod, // NEW: Saves payment type (e.g. "GCash QR") directly to database logs
           estimatedWait: summary.waitTime,
           items: cartItems, 
           createdAt: serverTimestamp()

@@ -102,6 +102,8 @@ class UIManager {
       queueEl.textContent = '';
     }
 
+    
+
     // Cart items
     const container = document.getElementById('cart-items');
     if (ids.length === 0) {
@@ -121,8 +123,8 @@ class UIManager {
         </div>
       `).join('');
     }
-
-    // Totals
+    
+// Totals
     document.getElementById('subtotal-val').textContent = `₱${stats.subtotal.toLocaleString()}`;
     document.getElementById('tax-val').textContent      = `₱${stats.tax.toLocaleString()}`;
     document.getElementById('total-val').textContent    = `₱${stats.total.toLocaleString()}`;
@@ -169,9 +171,14 @@ class UIManager {
     // ── CHECKOUT BUTTON RULES ──
     const checkoutBtn = document.getElementById('checkout-btn');
     if (checkoutBtn) {
-      checkoutBtn.disabled = (ids.length === 0 || !selectedTableId);
+      // Reads the tracked chosen state from the app controller instance
+      const isPaymentSelected = !!app.selectedPaymentMethod;
+      
+      // Button only enables when items > 0 AND table/pickup is selected AND a payment method is chosen
+      checkoutBtn.disabled = (ids.length === 0 || !selectedTableId || !isPaymentSelected);
     }
-  }
+  } // This closes the updateCart function cleanly at the very end
+
 
   renderSeating(seatingManager, selectedTableId) {
     const container = document.getElementById('floor-plan');
