@@ -55,20 +55,24 @@ class CafeController {
     const qty = this.ui.preQty[id] || 1;
     this.cart.addItem(id, name, price, qty);
     this.ui.preQty[id] = 1;
-    if (document.getElementById('qn-' + id)) document.getElementById('qn-' + id).textContent = 1;
+    // Inside your current addToCart() method:
+if (document.getElementById('qn-' + id)) document.getElementById('qn-' + id).textContent = 1;
     this.ui.showToast(`✓ Added ${name} to order`);
   }
 
   addDrinkToCart(id, name, price) {
-    const sugarLevel = document.getElementById('sugar-' + id).value;
-    const formattedName = sugarLevel !== 'Regular' ? `${name} (${sugarLevel})` : name;
-    const uniqueId = sugarLevel !== 'Regular' ? `${id}-${sugarLevel}` : id;
-    this.addToCart(uniqueId, formattedName, price);
-  }
-
-  updateCartQty(id, delta) {
-    this.cart.changeQty(id, delta);
-  }
+  const sugarLevel = document.getElementById('sugar-' + id).value;
+  const formattedName = sugarLevel !== 'Regular' ? `${name} (${sugarLevel})` : name;
+  const uniqueId = sugarLevel !== 'Regular' ? `${id}-${sugarLevel}` : id;
+  
+  // 1. Process cart addition via unique item ID metadata
+  this.addToCart(uniqueId, formattedName, price);
+  
+  // 2. Explicitly target and reset the underlying base view element to 0
+  if (this.ui.preQty[id]) this.ui.preQty[id] = 0; 
+  const el = document.getElementById('qn-' + id);
+  if (el) el.textContent = 0;
+}
 
   // ─── ORDER TYPE ───
 

@@ -77,7 +77,7 @@ class UIManager {
               </div>
             <button class="add-btn" onclick="app.addDrinkToCart('${drink.id}', '${drink.name.replace(/'/g, "\\'")}', ${drink.price})">+ Add</button>
           ` : `
-            <button class="add-btn" style="background:rgba(208,96,96,0.1); border-color:rgba(208,96,96,0.3); color:#d06060; width:100%; justify-content:center; cursor:not-allowed;" disabled>Out of Stock</button>
+            <button class="add-btn" style="background:rgba(208,96,96,0.1); border-color:rgba(208,96,96,0.3); color:#d06060; width:95%; justify-content:center; cursor:not-allowed;" disabled>Out of Stock</button>
           `}
         </div>
       </div>
@@ -358,5 +358,32 @@ class UIManager {
     const modal = document.getElementById('payment-modal');
     if (modal) modal.classList.toggle('open', forceState);
   }
+
+  showCardForm() {
+  // Hide initial payment options matrix
+  document.getElementById('payment-step-1').style.display = 'none';
+  // Hide GCash container if active
+  document.getElementById('payment-step-2').style.display = 'none';
+  
+  // Reveal the hidden credit/debit card details form
+  document.getElementById('payment-step-3').style.display = 'flex';
+  document.getElementById('payment-subtitle').textContent = "Enter your card details.";
+
+  // Update total value display target within card submit context 
+  const stats = this.cart ? this.cart.getTotals() : { total: 0 };
+  const cardTotalSpan = document.getElementById('card-pay-total');
+  if (cardTotalSpan) {
+    cardTotalSpan.textContent = stats.total.toLocaleString();
+  }
+  
+  // Rewire back button functionality to return cleanly to step 1
+  const backBtn = document.getElementById('payment-back-btn');
+  if (backBtn) {
+    backBtn.innerHTML = '← Back to Options';
+    backBtn.onclick = () => {
+      this.showPaymentOptions();
+    };
+  }
+}
 }
 
