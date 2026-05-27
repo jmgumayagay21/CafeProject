@@ -123,8 +123,6 @@ class UIManager {
       queueEl.textContent = '';
     }
 
-    
-
     // Cart items
     const container = document.getElementById('cart-items');
     if (ids.length === 0) {
