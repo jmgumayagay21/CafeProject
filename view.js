@@ -39,7 +39,7 @@ class UIManager {
             ${isAvailable ? `
               <div class="qty-ctrl visible" id="qc-${item.id}">
                 <button class="qty-btn" onclick="app.changePreQty('${item.id}', -1)">−</button>
-                <span class="qty-num" id="qn-${item.id}">1</span>
+                <span class="qty-num" id="qn-${item.id}">0</span>
                 <button class="qty-btn" onclick="app.changePreQty('${item.id}', 1)">+</button>
               </div>
               <button class="add-btn" onclick="app.addToCart('${item.id}', '${item.name.replace(/'/g, "\\'")}', ${item.price})">+ Add</button>
@@ -70,6 +70,11 @@ class UIManager {
         </div>
         <div class="drink-add">
           ${isAvailable ? `
+            <div class="qty-ctrl visible" id="qc-${drink.id}">
+                <button class="qty-btn" onclick="app.changePreQty('${drink.id}', -1)">−</button>
+                <span class="qty-num" id="qn-${drink.id}">0</span>
+                <button class="qty-btn" onclick="app.changePreQty('${drink.id}', 1)">+</button>
+              </div>
             <button class="add-btn" onclick="app.addDrinkToCart('${drink.id}', '${drink.name.replace(/'/g, "\\'")}', ${drink.price})">+ Add</button>
           ` : `
             <button class="add-btn" style="background:rgba(208,96,96,0.1); border-color:rgba(208,96,96,0.3); color:#d06060; width:100%; justify-content:center; cursor:not-allowed;" disabled>Out of Stock</button>
@@ -315,4 +320,43 @@ class UIManager {
     const banner = document.getElementById('queue-banner');
     if (banner) banner.classList.remove('visible');
   }
+
+// ─── PAYMENT UI METHODS ───
+
+  showPaymentOptions() {
+    const modal = document.getElementById('payment-modal');
+    if (modal) modal.classList.add('open');
+
+    // Show step 1 (Options), Hide step 2 (QR)
+    document.getElementById('payment-step-1').style.display = 'flex';
+    document.getElementById('payment-step-2').style.display = 'none';
+    document.getElementById('payment-subtitle').textContent = "Select how you'd like to pay.";
+    
+    // Wire the back button to return to the Cart Drawer
+    const backBtn = document.getElementById('payment-back-btn');
+    backBtn.innerHTML = '← Back to Order';
+    backBtn.onclick = () => {
+      this.togglePaymentModal(false);
+    };
+  }
+
+  showGCashQR() {
+    // Hide step 1 (Options), Show step 2 (QR)
+    document.getElementById('payment-step-1').style.display = 'none';
+    document.getElementById('payment-step-2').style.display = 'flex';
+    document.getElementById('payment-subtitle').textContent = "Scan QR to complete payment.";
+    
+    // Wire the back button to return to the Payment Options
+    const backBtn = document.getElementById('payment-back-btn');
+    backBtn.innerHTML = '← Back to Options';
+    backBtn.onclick = () => {
+      this.showPaymentOptions();
+    };
+  }
+
+  togglePaymentModal(forceState) {
+    const modal = document.getElementById('payment-modal');
+    if (modal) modal.classList.toggle('open', forceState);
+  }
 }
+

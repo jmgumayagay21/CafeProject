@@ -105,13 +105,20 @@ class CafeController {
     this.updateCartView();
   }
 
-  // ─── PLACE ORDER ───
+  // Update 5/27/26: For payment processing, we need to ensure the seating status is correctly reflected in the UI and database when an order is placed. This method will be called after a successful order placement to free up the table if it's a dine-in order.
 
-  placeOrder() {
+ // ─── CHECKOUT & PAYMENT ───
+
+  proceedToPayment() {
     if (!this.selectedTableId) {
       this.ui.showToast("⚠️ Please select a seat or choose Pickup before ordering.");
       return;
     }
+    this.ui.showPaymentOptions();
+  }
+
+  placeOrder(paymentMethod) {
+    if (!this.selectedTableId) return;
 
     const stats = this.cart.getTotals();
     const newOrder = new Order({...this.cart.getItems()}, stats.estimatedTime);
@@ -128,17 +135,21 @@ class CafeController {
       waitTime,
       type: this.orderType,
       table: this.selectedTableId,
-      total: stats.total
+      total: stats.total,
+      paymentMethod: paymentMethod // Store the selected payment method
     };
 
-    // Firebase Data Transmit Call with stock checking transaction
+    // Firebase Data Transmit Call
     this.saveOrderToFirebase(orderSummary, stats, newOrder.items);
 
     this.cart.clear();
     this.selectedTableId = null;
     this.orderType = null;
 
+    // Close both modals
+    this.ui.togglePaymentModal(false);
     this.ui.toggleCart(false);
+    
     this._startQueueCountdown(orderSummary);
     this.ui.showOrderConfirmation(orderSummary);
   }
@@ -149,6 +160,7 @@ class CafeController {
       console.warn("Firebase not ready or active.");
       return;
     }
+    
 
     const db = window.firebaseDB;
     const { collection, addDoc, doc, runTransaction, serverTimestamp } = window.dbMethods;
@@ -185,6 +197,7 @@ class CafeController {
         }
 
         // Write order receipt log entry to database
+        // Write order receipt log entry to database
         await addDoc(collection(db, "orders"), {
           queueNumber: summary.position,
           orderType: summary.type,
@@ -192,6 +205,7 @@ class CafeController {
           subtotal: stats.subtotal,
           tax: stats.tax,
           totalPaid: summary.total,
+          paymentMethod: summary.paymentMethod, // NEW DATA FIELD
           estimatedWait: summary.waitTime,
           items: cartItems, 
           createdAt: serverTimestamp()
@@ -243,7 +257,8 @@ window.app = app;
 
 window.openCart  = () => app.ui.toggleCart(true);
 window.closeCart = () => app.ui.toggleCart(false);
-window.placeOrder = () => app.placeOrder();
+window.proceedToPayment = () => app.proceedToPayment();     // NEW ROUTE
+window.placeOrder = (method) => app.placeOrder(method);     // UPDATED ROUTE
 window.clearCart  = () => app.cart.clear();
 
 window.setCategory = (cat, btn) => {

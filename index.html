@@ -65,7 +65,7 @@
       <div class="special-actions">
         <div class="qty-ctrl" id="special-qty-ctrl">
           <button type="button" class="qty-btn" onclick="app.changePreQty('special-item', -1)">−</button>
-          <span class="qty-num" id="qn-special-item">1</span>
+          <span class="qty-num" id="qn-special-item">0</span>
           <button type="button" class="qty-btn" onclick="app.changePreQty('special-item', 1)">+</button>
         </div>
         <button type="button" class="add-btn" id="special-add-btn" onclick="app.addToCart('special-item', 'Truffle Scrambled Eggs', 285)">
@@ -150,7 +150,7 @@
   <p style="font-size:12px;color:var(--text-dim)">Prices inclusive of VAT · Menu changes seasonally</p>
 </footer>
  
-<div class="overlay" id="overlay" onclick="closeCart(); app.ui.toggleSeatingModal(false); app.ui.hideOrderConfirmation();"></div>
+<div class="overlay" id="overlay" onclick="closeCart(); app.ui.toggleSeatingModal(false); app.ui.hideOrderConfirmation(); app.ui.togglePaymentModal(false);"></div>
  
 <div class="cart-drawer" id="cart-drawer">
   <div class="drawer-head">
@@ -186,6 +186,12 @@
 
     <div id="seat-selection-ui" style="margin-bottom:12px;"></div>
 
+    <button class="checkout-btn" id="checkout-btn" onclick="proceedToPayment()">
+      Proceed to Payment →
+    </button>
+
+    <div id="seat-selection-ui" style="margin-bottom:12px;"></div>
+    
     <button class="checkout-btn" id="checkout-btn" onclick="placeOrder()">
       Place Order →
     </button>
@@ -229,7 +235,73 @@
     <div id="floor-plan"></div>
   </div>
 </div>
-   
+
+<div class="cart-drawer" id="payment-modal" style="z-index: 915;">
+  <div class="drawer-head">
+    <div>
+      <h2>Payment</h2>
+      <p class="queue-position" id="payment-subtitle">Select how you'd like to pay.</p>
+    </div>
+    <div style="display:flex;gap:8px;align-items:center">
+      <button class="clear-btn" id="payment-back-btn" style="width:auto;padding:8px 14px;margin:0;font-size:11px;border-color:var(--gold-dim);color:var(--gold);" onclick="app.ui.togglePaymentModal(false)">
+        ← Back to Order
+      </button>
+      <button class="close-btn" onclick="app.ui.togglePaymentModal(false)">✕</button>
+    </div>
+  </div>
+  
+  <div class="cart-items" id="payment-items" style="padding-top: 24px;">
+    
+    <div id="payment-step-1" style="display:flex; flex-direction:column; gap:12px;">
+      <button class="payment-btn" onclick="placeOrder('Cash')">
+        <span class="payment-btn-icon">💵</span> Cash
+      </button>
+      <button class="payment-btn" onclick="app.ui.showCardForm()">
+        <span class="payment-btn-icon">💳</span> Credit / Debit Card
+      </button>
+      <button class="payment-btn" onclick="app.ui.showGCashQR()">
+        <span class="payment-btn-icon">📱</span> GCash
+      </button>
+    </div>
+
+    <div id="payment-step-2" style="display:none; flex-direction:column; align-items:center; gap:20px;">
+      <div style="background: white; padding: 16px; border-radius: 16px; width: 100%; max-width: 280px; box-shadow: 0 8px 32px rgba(0,0,0,0.3);">
+        <img src="image_fb411d.jpg" alt="GCash QR Code" style="width: 100%; height: auto; border-radius: 8px;">
+      </div>
+      <p style="font-size: 13px; color: var(--text-dim); text-align: center; line-height: 1.6;">
+        Scan the QR code using your GCash app.<br>Tap confirm below once the transfer is complete.
+      </p>
+      <button class="checkout-btn" onclick="placeOrder('GCash')">
+        I have paid via GCash →
+      </button>
+    </div>
+
+    <div id="payment-step-3" style="display:none; flex-direction:column; gap:16px;">
+      <div class="form-group">
+        <label class="form-label">Name on Card</label>
+        <input type="text" class="form-input" placeholder="Juan Dela Cruz" id="card-name">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Card Number</label>
+        <input type="text" class="form-input" placeholder="0000 0000 0000 0000" id="card-number" maxlength="19">
+      </div>
+      <div class="form-row" style="display:flex; gap:12px;">
+        <div class="form-group" style="flex:1;">
+          <label class="form-label">Expiry (MM/YY)</label>
+          <input type="text" class="form-input" placeholder="MM/YY" id="card-expiry" maxlength="5">
+        </div>
+        <div class="form-group" style="flex:1;">
+          <label class="form-label">CVV</label>
+          <input type="password" class="form-input" placeholder="123" id="card-cvv" maxlength="4">
+        </div>
+      </div>
+      <button class="checkout-btn" onclick="placeOrder('Card')" style="margin-top: 8px;">
+        Confirm & Pay ₱<span id="card-pay-total">0</span> →
+      </button>
+    </div>
+
+  </div>
+
 <script src="models.js"></script>
 <script src="managers.js"></script>
 <script src="view.js"></script>
