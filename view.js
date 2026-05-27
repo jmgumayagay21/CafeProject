@@ -25,23 +25,27 @@ class UIManager {
   }
 
   createFoodCard(item) {
-    const isAvailable = item.stock > 0;
+    const isAvailable = item.stocks > 0;
     return `
       <div class="menu-card" data-id="${item.id}" data-tags="${item.tags.join(' ')}">
         <div class="card-top">
           <p class="item-name">${item.name}</p>
           <p class="item-price">₱${item.price}</p>
         </div>
-        <p class="item-desc">${item.desc}</p>
+        <p class="item-desc">${item.desc} <span style="color:var(--gold-light); display:block; margin-top:4px; font-size:11px;">${isAvailable ? `Stock: ${item.stocks}` : 'SOLD OUT'}</span></p>
         <div class="card-bottom">
           <div class="tags">${this.tagHTML(item.tags)}</div>
           <div class="add-wrap">
-            <div class="qty-ctrl visible" id="qc-${item.id}">
-              <button class="qty-btn" onclick="app.changePreQty('${item.id}', -1)">−</button>
-              <span class="qty-num" id="qn-${item.id}">0</span>
-              <button class="qty-btn" onclick="app.changePreQty('${item.id}', 1)">+</button>
-            </div>
-            <button class="add-btn" onclick="app.addToCart('${item.id}', '${item.name.replace(/'/g, "\\'")}', ${item.price})">+ Add</button>
+            ${isAvailable ? `
+              <div class="qty-ctrl visible" id="qc-${item.id}">
+                <button class="qty-btn" onclick="app.changePreQty('${item.id}', -1)">−</button>
+                <span class="qty-num" id="qn-${item.id}">1</span>
+                <button class="qty-btn" onclick="app.changePreQty('${item.id}', 1)">+</button>
+              </div>
+              <button class="add-btn" onclick="app.addToCart('${item.id}', '${item.name.replace(/'/g, "\\'")}', ${item.price})">+ Add</button>
+            ` : `
+              <button class="add-btn" style="background:rgba(208,96,96,0.1); border-color:rgba(208,96,96,0.3); color:#d06060; cursor:not-allowed;" disabled>Out of Stock</button>
+            `}
           </div>
         </div>
       </div>
@@ -49,69 +53,40 @@ class UIManager {
   }
 
   createDrinkCard(drink) {
-    const isAvailable = drink.stock > 0;
+    const isAvailable = drink.stocks > 0;
     return `
-      <div class="drink-card" data-id="${drink.id}" data-tags="${drink.tags.join(' ')}">
+      <div class="drink-card">
         <div class="drink-icon">${drink.icon}</div>
         <p class="drink-name">${drink.name}</p>
-        <p class="drink-desc">${drink.desc}</p>
+        <p class="drink-desc">${drink.desc} <span style="color:var(--gold-light); display:block; font-size:11px;">${isAvailable ? `Stock: ${drink.stocks}` : 'SOLD OUT'}</span></p>
         <p class="drink-price">₱${drink.price}</p>
         <div class="drink-sugar">
           <label>Sugar</label>
-          <select id="sugar-${drink.id}" class="sugar-select">
+          <select id="sugar-${drink.id}" class="sugar-select" ${!isAvailable ? 'disabled' : ''}>
             <option value="Regular">Regular</option>
             <option value="50%">50%</option>
             <option value="No sugar">No sugar</option>
           </select>
         </div>
-        
-        <div class="tags" style="margin-top: 14px; justify-content: center; min-height: 22px;">
-          ${this.tagHTML(drink.tags)}
-        </div>
-
-        <div class="drink-add" style="margin-top: 14px; flex-direction: row; justify-content: center; gap: 8px;">
-          <div class="qty-ctrl visible" id="qc-${drink.id}">
-            <button class="qty-btn" onclick="app.changePreQty('${drink.id}', -1)">−</button>
-            <span class="qty-num" id="qn-${drink.id}">0</span>
-            <button class="qty-btn" onclick="app.changePreQty('${drink.id}', 1)">+</button>
-          </div>
-          <button class="add-btn" onclick="app.addDrinkToCart('${drink.id}', '${drink.name.replace(/'/g, "\\'")}', ${drink.price})">+ Add</button>
+        <div class="drink-add">
+          ${isAvailable ? `
+            <button class="add-btn" onclick="app.addDrinkToCart('${drink.id}', '${drink.name.replace(/'/g, "\\'")}', ${drink.price})">+ Add</button>
+          ` : `
+            <button class="add-btn" style="background:rgba(208,96,96,0.1); border-color:rgba(208,96,96,0.3); color:#d06060; width:100%; justify-content:center; cursor:not-allowed;" disabled>Out of Stock</button>
+          `}
         </div>
       </div>
     `;
   }
 
-  // NEW: Add selectedPaymentMethod to the parameters
-  updateCart(cart, queuePos, queueLen, selectedTableId, availableCount, orderType, activeWaitTime, selectedPaymentMethod) {
-    // 1. Ensure these three lines are still intact!
+  updateCart(cart, queuePos, queueLen, selectedTableId, availableCount, orderType, activeWaitTime) {
     const stats = cart.getTotals();
     const items = cart.getItems();
     const ids   = Object.keys(items);
 
-    // 2. Badge (Updated with safe null checks to clear editor warnings)
-    const badgeEl = document.getElementById('cart-badge');
-    if (badgeEl) {
-      badgeEl.textContent = stats.totalItems;
-      badgeEl.classList.toggle('show', stats.totalItems > 0);
-    }
+    document.getElementById('cart-badge').textContent = stats.totalItems;
+    document.getElementById('cart-badge').classList.toggle('show', stats.totalItems > 0);
 
-    // 3. Queue nav info (Also updated with safe null checks)
-    const queueEl = document.getElementById('queue-info');
-    if (queueEl) {
-      if (queuePos) {
-        queueEl.textContent = activeWaitTime
-          ? `#${queuePos} in queue · est. ${activeWaitTime} min`
-          : `#${queuePos} in queue`;
-      } else if (queueLen > 0) {
-        queueEl.textContent = `(${queueLen} in queue)`;
-      } else {
-        queueEl.textContent = '';
-      }
-    }
-
-    // ... (Keep the rest of your cart items and totals code below here) ...
-
-    // Queue nav info
     const queueEl = document.getElementById('queue-info');
     if (queuePos) {
       queueEl.textContent = activeWaitTime
@@ -123,7 +98,6 @@ class UIManager {
       queueEl.textContent = '';
     }
 
-    // Cart items
     const container = document.getElementById('cart-items');
     if (ids.length === 0) {
       container.innerHTML = `<div class="empty-cart"><div class="empty-icon">🛒</div><p>Your order is empty.<br>Add something delicious!</p></div>`;
@@ -142,20 +116,17 @@ class UIManager {
         </div>
       `).join('');
     }
-    
-// Totals
+
     document.getElementById('subtotal-val').textContent = `₱${stats.subtotal.toLocaleString()}`;
     document.getElementById('tax-val').textContent      = `₱${stats.tax.toLocaleString()}`;
     document.getElementById('total-val').textContent    = `₱${stats.total.toLocaleString()}`;
     document.getElementById('estimate-val').textContent = `${stats.estimatedTime} min`;
 
-    // ── ORDER TYPE SELECTOR + SEAT UI ──
     const seatUI = document.getElementById('seat-selection-ui');
     if (seatUI) {
       const isDineIn  = orderType === 'dine-in';
       const isPickup  = orderType === 'pickup';
 
-      // If all seats occupied, force pickup notice
       if (availableCount === 0 && !isPickup) {
         seatUI.innerHTML = `
           <div class="order-type-notice">
@@ -165,7 +136,6 @@ class UIManager {
             </button>
           </div>`;
       } else {
-        // Build the two toggle buttons
         const dineLabel = isDineIn && selectedTableId
           ? `🪑 Table ${selectedTableId} — Change?`
           : `🪑 Dine In`;
@@ -187,17 +157,11 @@ class UIManager {
       }
     }
 
-    // ── CHECKOUT BUTTON RULES ──
     const checkoutBtn = document.getElementById('checkout-btn');
     if (checkoutBtn) {
-      // Reads the tracked chosen state from the app controller instance
-      const isPaymentSelected = !!app.selectedPaymentMethod;
-      
-      // Button only enables when items > 0 AND table/pickup is selected AND a payment method is chosen
-      checkoutBtn.disabled = (ids.length === 0 || !selectedTableId || !isPaymentSelected);
+      checkoutBtn.disabled = (ids.length === 0 || !selectedTableId);
     }
-  } // This closes the updateCart function cleanly at the very end
-
+  }
 
   renderSeating(seatingManager, selectedTableId) {
     const container = document.getElementById('floor-plan');
@@ -234,21 +198,19 @@ class UIManager {
         </div>`;
     };
 
-    // Stats bar
     const statsBar = `
       <div style="display:flex;gap:10px;align-items:center;margin-bottom:14px;font-family:'Outfit',sans-serif;flex-wrap:wrap;">
         <div style="flex:1;min-width:0;">
-          <div style="font-size:9px;letter-spacing:2px;text-transform:uppercase;color:rgba(245,237,216,0.35);font-weight:600;margin-bottom:6px;">Table Status</div>
-          <div style="display:flex;gap:2px;height:4px;border-radius:4px;overflow:hidden;background:rgba(255,255,255,0.06);">
-            <div style="height:4px;background:rgba(126,175,102,0.55);width:${Math.round(available/total*100)}%;transition:width 0.4s;"></div>
-            <div style="height:4px;background:rgba(196,98,45,0.5);width:${Math.round(occupied/total*100)}%;transition:width 0.4s;"></div>
+          <div style="font-size:9px;letter-spacing:2px;text-transform:uppercase;color:#8B7355;font-weight:600;margin-bottom:3px;">Table Status</div>
+          <div style="display:flex;gap:3px;">
+            <div style="height:5px;border-radius:3px 0 0 3px;background:#7EA86A;width:${Math.round(available/total*100)}%;transition:width 0.4s;"></div>
+            <div style="height:5px;border-radius:0 3px 3px 0;background:#C96A40;width:${Math.round(occupied/total*100)}%;transition:width 0.4s;"></div>
           </div>
         </div>
-        <div style="font-size:11px;color:rgba(126,175,102,0.85);font-weight:500;white-space:nowrap;">${available} open</div>
-        <div style="font-size:11px;color:rgba(196,98,45,0.75);font-weight:500;white-space:nowrap;">${occupied} taken</div>
+        <div style="font-size:11px;color:#5E8A4C;font-weight:600;white-space:nowrap;">${available} open</div>
+        <div style="font-size:11px;color:#A84F28;font-weight:600;white-space:nowrap;">${occupied} taken</div>
       </div>`;
 
-    // Legend
     const legend = `
       <div class="fp-legend">
         <div class="fp-legend-item"><div class="fp-legend-dot available"></div> Available</div>
@@ -308,7 +270,6 @@ class UIManager {
     setTimeout(() => t.classList.remove('show'), 3500);
   }
 
-  // ── ORDER CONFIRMATION MODAL ──
   showOrderConfirmation(summary) {
     const modal = document.getElementById('order-confirm-modal');
     if (!modal) return;
@@ -328,7 +289,6 @@ class UIManager {
     document.getElementById('overlay').classList.remove('open');
   }
 
-  // ── QUEUE BANNER (live countdown) ──
   updateQueueBanner(position, mins, secs, type, table) {
     let banner = document.getElementById('queue-banner');
     if (!banner) {

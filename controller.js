@@ -8,10 +8,8 @@ class CafeController {
     
     this.activeQueuePosition = null;
     this.activeQueueWait = null;
-    // Update 5/26 Add payment method tracking and selection state
     this.selectedTableId = null;
     this.orderType = null; // 'dine-in' | 'pickup'
-    this.selectedPaymentMethod = null; // NEW: Track the ongoing payment selection choice
     this._queueTimerInterval = null;
 
     this.cart.subscribe(() => {
@@ -34,81 +32,43 @@ class CafeController {
       this.selectedTableId,
       this.seating.getAvailableCount(),
       this.orderType,
-      this.activeQueueWait,
-      this.selectedPaymentMethod // NEW: Pass the payment method securely
+      this.activeQueueWait
     );
     this.ui.renderSeating(this.seating, this.selectedTableId);
   }
 
   // ─── CART FUNCTIONS ───
-// Update 5/26 - To change/update the quantity of items 0
+
   changePreQty(id, delta) {
-    // If it doesn't exist yet, initialize it at 1
-    if (this.ui.preQty[id] === undefined) this.ui.preQty[id] = 1;
-    
-    // Allow it to drop down to 0 instead of stopping at 1
-    this.ui.preQty[id] = Math.max(0, this.ui.preQty[id] + delta);
-    
-    // Support both 'qn-special-item' or the older 'special-qty-num' ID fallback
-    let el = document.getElementById('qn-' + id);
-    if (id === 'special-item' && !el) {
-      el = document.getElementById('special-qty-num');
-    }
-    
+    if (!this.ui.preQty[id]) this.ui.preQty[id] = 1;
+    this.ui.preQty[id] = Math.max(1, this.ui.preQty[id] + delta);
+    const el = document.getElementById('qn-' + id);
     if (el) el.textContent = this.ui.preQty[id];
   }
 
   addToCart(id, name, price) {
-    const qty = this.ui.preQty[id] !== undefined ? this.ui.preQty[id] : 1;
-    
-    // NEW: Guard check validation clause preventing 0 additions
-    if (qty <= 0) {
-      this.ui.showToast("⚠️ Please select a quantity of 1 or more.");
+    const item = this.catalog.findItemById(id);
+    if (item && item.stocks <= 0) {
+      this.ui.showToast("⚠️ Sorry, this item just sold out!");
       return;
     }
-    
-    // Adding the item now automatically triggers updateCartView() via the Observer!
-    this.cart.addItem(id, name, price, qty); 
-    
-    // Reset tracker back to 1 after a successful order validation pass
-    this.ui.preQty[id] = 1; 
-    
-    // Update displays
-    let el = document.getElementById('qn-' + id);
-    if (id === 'special-item' && !el) el = document.getElementById('special-qty-num');
-    if (el) el.textContent = 1;
-    
+    const qty = this.ui.preQty[id] || 1;
+    this.cart.addItem(id, name, price, qty);
+    this.ui.preQty[id] = 1;
+    if (document.getElementById('qn-' + id)) document.getElementById('qn-' + id).textContent = 1;
     this.ui.showToast(`✓ Added ${name} to order`);
   }
-// Update 5/26 - To have Sugarlevel 25% and 75% and Quantity selection for drinks
+
   addDrinkToCart(id, name, price) {
-    // 1. Get the configured sugar selection level
     const sugarLevel = document.getElementById('sugar-' + id).value;
     const formattedName = sugarLevel !== 'Regular' ? `${name} (${sugarLevel})` : name;
     const uniqueId = sugarLevel !== 'Regular' ? `${id}-${sugarLevel}` : id;
-    
-    // 2. Extract the current quantity input value from preQty tracker
-    const qty = this.ui.preQty[id] || 1;
-    
-    // 3. Direct add item interaction with the exact count
-    this.cart.addItem(uniqueId, formattedName, price, qty); 
-    
-    // 4. Reset tracker data state and local interface displays back to 1
-    this.ui.preQty[id] = 1; 
-    if (document.getElementById('qn-' + id)) {
-      document.getElementById('qn-' + id).textContent = 1;
-    }
-    
-    this.ui.showToast(`✓ Added ${qty}x ${formattedName} to order`);
+    this.addToCart(uniqueId, formattedName, price);
   }
 
   updateCartQty(id, delta) {
     this.cart.changeQty(id, delta);
   }
-
-  // ─── ORDER TYPE ───
-
-  // ─── ORDER TYPE ───
 
   // ─── ORDER TYPE ───
 
@@ -122,12 +82,6 @@ class CafeController {
       this.ui.toggleSeatingModal(true);
     }
     this.updateCartView();
-  }
-
-  // Ensure this method is defined separately below setOrderType
-  setPaymentMethod(method) {
-    this.selectedPaymentMethod = method ? method : null;
-    this.updateCartView(); 
   }
 
   // ─── SEATING ───
@@ -158,10 +112,6 @@ class CafeController {
       this.ui.showToast("⚠️ Please select a seat or choose Pickup before ordering.");
       return;
     }
-    if (!this.selectedPaymentMethod) {
-      this.ui.showToast("⚠️ Please select your payment method.");
-      return;
-    }
 
     const stats = this.cart.getTotals();
     const newOrder = new Order({...this.cart.getItems()}, stats.estimatedTime);
@@ -178,25 +128,19 @@ class CafeController {
       waitTime,
       type: this.orderType,
       table: this.selectedTableId,
-      total: stats.total,
-      paymentMethod: this.selectedPaymentMethod // NEW: Added to order summary context
+      total: stats.total
     };
 
-    // Transmit summary data down to Firebase including the verified selected payment selection
+    // Firebase Data Transmit Call with stock checking transaction
     this.saveOrderToFirebase(orderSummary, stats, newOrder.items);
 
     this.cart.clear();
     this.selectedTableId = null;
     this.orderType = null;
-    this.selectedPaymentMethod = null; // Reset payment state string target cleanly
-
-    // Reset the select element drop option display interface value back to default
-    const pSelector = document.getElementById('payment-method');
-    if (pSelector) pSelector.value = "";
 
     this.ui.toggleCart(false);
-    this.ui.showOrderConfirmation(orderSummary);
     this._startQueueCountdown(orderSummary);
+    this.ui.showOrderConfirmation(orderSummary);
   }
 
   // CLOUD ATOMIC TRANSACTIONS: Reads dynamic states, blocks invalid buys, updates fields safely
@@ -240,7 +184,7 @@ class CafeController {
           transaction.update(update.ref, { stocks: update.newStock });
         }
 
-        // Update 5/27: Write order receipt log entry to database
+        // Write order receipt log entry to database
         await addDoc(collection(db, "orders"), {
           queueNumber: summary.position,
           orderType: summary.type,
@@ -248,7 +192,6 @@ class CafeController {
           subtotal: stats.subtotal,
           tax: stats.tax,
           totalPaid: summary.total,
-          paymentMethod: summary.paymentMethod, // NEW: Saves payment type (e.g. "GCash QR") directly to database logs
           estimatedWait: summary.waitTime,
           items: cartItems, 
           createdAt: serverTimestamp()
@@ -296,14 +239,12 @@ class CafeController {
 
 // Instantiate App
 const app = new CafeController();
-window.app = app; // Expose globally immediately
+window.app = app; 
 
-// Bind UI actions safely to the window
-window.openCart  = () => window.app.ui.toggleCart(true);
-window.closeCart = () => window.app.ui.toggleCart(false);
-window.placeOrder = () => window.app.placeOrder();
-window.clearCart  = () => window.app.cart.clear();
-window.openSeating = () => window.app.ui.toggleSeatingModal(true);
+window.openCart  = () => app.ui.toggleCart(true);
+window.closeCart = () => app.ui.toggleCart(false);
+window.placeOrder = () => app.placeOrder();
+window.clearCart  = () => app.cart.clear();
 
 window.setCategory = (cat, btn) => {
   document.querySelectorAll('.cat-btn').forEach(b => b.classList.remove('active'));
@@ -318,6 +259,6 @@ window.setFilter = (tag, btn) => {
   document.querySelectorAll('.menu-card').forEach(card => {
     if (tag === 'all') { card.style.display = ''; return; }
     const tags = card.dataset.tags || '';
-    card.style.display = tags.includes(tag) ? '' : 'none';  
+    card.style.display = tags.includes(tag) ? '' : 'none';
   });
 };

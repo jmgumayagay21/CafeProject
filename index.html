@@ -26,7 +26,7 @@
     <button class="btn-primary" onclick="document.getElementById('menu-start').scrollIntoView({behavior:'smooth'})">
       ☕ View Menu
     </button>
-    <button class="btn-ghost" onclick="openSeating()">
+    <button class="btn-ghost" onclick="app.ui.toggleSeatingModal(true)">
       🪑 <span id="seat-count-btn">Seat Available</span>
     </button>
   </div>
@@ -63,10 +63,10 @@
       <h3 class="special-title">Truffle Scrambled<br>Eggs on Sourdough</h3>
       <p class="special-desc">Three free-range eggs whipped with crème fraîche, finished with black truffle oil, fresh chives, and served on thick-cut housemade sourdough toast.</p>
       <div class="special-actions">
-        <div class="qty-ctrl visible" id="qc-special-item">
-          <button type="button" class="qty-btn" onclick="app.changePreQty('special-item',-1)">−</button>
-          <span class="qty-num" id="qn-special-item">0</span>
-          <button type="button" class="qty-btn" onclick="app.changePreQty('special-item',1)">+</button>
+        <div class="qty-ctrl" id="special-qty-ctrl">
+          <button type="button" class="qty-btn" onclick="app.changePreQty('special-item', -1)">−</button>
+          <span class="qty-num" id="qn-special-item">1</span>
+          <button type="button" class="qty-btn" onclick="app.changePreQty('special-item', 1)">+</button>
         </div>
         <button type="button" class="add-btn" id="special-add-btn" onclick="app.addToCart('special-item', 'Truffle Scrambled Eggs', 285)">
           <span class="plus">+</span> Add to Order
@@ -185,24 +185,8 @@
     </div>
 
     <div id="seat-selection-ui" style="margin-bottom:12px;"></div>
-    
 
-   <div id="seat-selection-ui" style="margin-bottom:12px;"></div>
-
-    <div class="payment-method-row" style="margin-bottom: 12px;">
-      <label for="payment-method" style="font-size: 11px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 1px; display: block; margin-bottom: 6px;">
-        💳 Choose Payment Option
-      </label>
-      <select id="payment-method" class="sugar-select" style="width: 100%; border-color: var(--border2); background: var(--surface2);" onchange="app.setPaymentMethod(this.value)">
-        <option value="">-- Select Method --</option>
-        <option value="Cash">💵 Cash at Counter</option>
-        <option value="GCash QR">📱 GCash (QR Code Scan)</option>
-        <option value="Credit Card">💳 Credit Card</option>
-        <option value="Debit Card">💳 Debit Card</option>
-      </select>
-    </div>
-
-    <button class="checkout-btn" id="checkout-btn" onclick="placeOrder()" disabled>
+    <button class="checkout-btn" id="checkout-btn" onclick="placeOrder()">
       Place Order →
     </button>
     <button class="clear-btn" onclick="clearCart()">Clear order</button>
