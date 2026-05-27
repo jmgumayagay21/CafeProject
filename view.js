@@ -26,7 +26,8 @@ class UIManager {
 
   createFoodCard(item) {
     const isAvailable = item.stocks > 0;
-    return `
+    const currentQty = this.preQty[item.id] || 0; // ADD THIS LINE
+      return`
       <div class="menu-card" data-id="${item.id}" data-tags="${item.tags.join(' ')}">
         <div class="card-top">
           <p class="item-name">${item.name}</p>
@@ -165,6 +166,10 @@ class UIManager {
     const checkoutBtn = document.getElementById('checkout-btn');
     if (checkoutBtn) {
       checkoutBtn.disabled = (ids.length === 0 || !selectedTableId);
+    }
+const placeOrderBtn = document.getElementById('real-place-order-btn');
+    if (placeOrderBtn) {
+      placeOrderBtn.disabled = (ids.length === 0 || !selectedTableId);
     }
   }
 
@@ -323,16 +328,17 @@ class UIManager {
 
 // ─── PAYMENT UI METHODS ───
 
-  showPaymentOptions() {
+ showPaymentOptions() {
     const modal = document.getElementById('payment-modal');
     if (modal) modal.classList.add('open');
 
-    // Show step 1 (Options), Hide step 2 (QR)
+    // Display Step 1 matrix options properly, hide the rest
     document.getElementById('payment-step-1').style.display = 'flex';
     document.getElementById('payment-step-2').style.display = 'none';
+    document.getElementById('payment-step-3').style.display = 'none'; // Clear step 3 visibility remnants
+    
     document.getElementById('payment-subtitle').textContent = "Select how you'd like to pay.";
     
-    // Wire the back button to return to the Cart Drawer
     const backBtn = document.getElementById('payment-back-btn');
     backBtn.innerHTML = '← Back to Order';
     backBtn.onclick = () => {
@@ -341,12 +347,13 @@ class UIManager {
   }
 
   showGCashQR() {
-    // Hide step 1 (Options), Show step 2 (QR)
+    // Display Step 2 QR layout options properly, hide the rest
     document.getElementById('payment-step-1').style.display = 'none';
     document.getElementById('payment-step-2').style.display = 'flex';
+    document.getElementById('payment-step-3').style.display = 'none'; // Clear step 3 visibility remnants
+    
     document.getElementById('payment-subtitle').textContent = "Scan QR to complete payment.";
     
-    // Wire the back button to return to the Payment Options
     const backBtn = document.getElementById('payment-back-btn');
     backBtn.innerHTML = '← Back to Options';
     backBtn.onclick = () => {

@@ -189,15 +189,9 @@
     <button class="checkout-btn" id="checkout-btn" onclick="proceedToPayment()">
       Proceed to Payment →
     </button>
-
-    <div id="seat-selection-ui" style="margin-bottom:12px;"></div>
     
-    <button class="checkout-btn" id="checkout-btn" onclick="placeOrder()">
-      Place Order →
-    </button>
     <button class="clear-btn" onclick="clearCart()">Clear order</button>
   </div>
-</div>
  
 <div class="toast" id="toast"></div>
 
@@ -295,12 +289,13 @@
           <input type="password" class="form-input" placeholder="123" id="card-cvv" maxlength="4">
         </div>
       </div>
-      <button class="checkout-btn" onclick="placeOrder('Card')" style="margin-top: 8px;">
+      <button class="checkout-btn" id="card-confirm-btn" onclick="placeOrder('Card')" style="margin-top: 8px;">
         Confirm & Pay ₱<span id="card-pay-total">0</span> →
       </button>
     </div>
 
   </div>
+</div>
 
 <script src="models.js"></script>
 <script src="managers.js"></script>
@@ -343,6 +338,7 @@
   };
 
   // LIVE SNAPSHOT STREAM LISTENER
+ // LIVE SNAPSHOT STREAM LISTENER
   onSnapshot(collection(db, "products"), (snapshot) => {
     let cloudMenu = { breakfast: [], allday: [], mains: [], sweets: [], drinks: [] };
     
@@ -356,6 +352,11 @@
       // FIXED 2: Forced routing. If the document ID starts with 'd', force it to the 'drinks' category layout
       if (docId.startsWith('d')) {
         category = "drinks";
+      }
+
+      // ADD THIS BLOCK to prevent the special item from duplicating in the standard grid
+      if (docId === 'special-item' || data.name === 'Truffle Scrambled Eggs') {
+        return; // skips this item completely
       }
 
       if (category && cloudMenu[category]) {

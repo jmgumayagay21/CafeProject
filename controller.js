@@ -39,25 +39,55 @@ class CafeController {
 
   // ─── CART FUNCTIONS ───
 
+ // Replace your current changePreQty with this:
   changePreQty(id, delta) {
-    if (!this.ui.preQty[id]) this.ui.preQty[id] = 1;
-    this.ui.preQty[id] = Math.max(1, this.ui.preQty[id] + delta);
+    // Find the item to check its stock
+    const item = this.catalog.findItemById(id);
+    const maxStock = item ? item.stocks : 99; 
+    
+    // Default to 0 if untouched
+    if (this.ui.preQty[id] === undefined) this.ui.preQty[id] = 0;
+    
+    // Calculate new quantity, capping it between 0 and the max available stock
+    let newQty = this.ui.preQty[id] + delta;
+    this.ui.preQty[id] = Math.max(0, Math.min(maxStock, newQty)); 
+    
+    // Update the visual number
     const el = document.getElementById('qn-' + id);
     if (el) el.textContent = this.ui.preQty[id];
   }
 
+  updateCartQty(id, delta) {
+    this.cart.changeQty(id, delta);
+  }
+
+  // Update addToCart to handle the new 0 value properly:
   addToCart(id, name, price) {
     const item = this.catalog.findItemById(id);
-    if (item && item.stocks <= 0) {
-      this.ui.showToast("⚠️ Sorry, this item just sold out!");
+    
+    // 1. Determine exactly how many they want to add
+    let qtyToAdd = this.ui.preQty[id];
+    if (qtyToAdd === 0) return; // Do nothing if it's set to 0
+    if (qtyToAdd === undefined) qtyToAdd = 1; // Default to 1 if they just clicked "+ Add" directly
+
+    // 2. Check if adding this batch exceeds total stock limits
+    const currentCartQty = this.cart.items[id] ? this.cart.items[id].qty : 0;
+    if (item && (currentCartQty + qtyToAdd) > item.stocks) {
+      const left = item.stocks - currentCartQty;
+      this.ui.showToast(`⚠️ Cannot add more! Only ${left} left available.`);
       return;
     }
-    const qty = this.ui.preQty[id] || 1;
-    this.cart.addItem(id, name, price, qty);
-    this.ui.preQty[id] = 1;
-    // Inside your current addToCart() method:
-if (document.getElementById('qn-' + id)) document.getElementById('qn-' + id).textContent = 1;
-    this.ui.showToast(`✓ Added ${name} to order`);
+
+    // 3. Add to cart
+    this.cart.addItem(id, name, price, qtyToAdd);
+    
+    // 4. Reset the quantity selector back to 0
+    this.ui.preQty[id] = 0;
+    if (document.getElementById('qn-' + id)) {
+      document.getElementById('qn-' + id).textContent = 0;
+    }
+    
+    this.ui.showToast(`✓ Added ${qtyToAdd}x ${name} to order`);
   }
 
   addDrinkToCart(id, name, price) {
@@ -253,6 +283,40 @@ if (document.getElementById('qn-' + id)) document.getElementById('qn-' + id).tex
     updateTimer();
     this._queueTimerInterval = setInterval(updateTimer, 1000);
   }
+
+  // Add this method inside CafeController in controller.js
+  setupPaymentValidationListeners() {
+    const cardName = document.getElementById('card-name');
+    const cardNumber = document.getElementById('card-number');
+    const cardExpiry = document.getElementById('card-expiry');
+    const cardCVV = document.getElementById('card-cvv');
+    const cardConfirmBtn = document.getElementById('card-confirm-btn');
+
+    if (!cardConfirmBtn) return;
+
+    // If inputs aren't rendered or active yet, just skip gracefully
+    if (!cardName || !cardNumber || !cardExpiry || !cardCVV) {
+      cardConfirmBtn.disabled = true;
+      return;
+    }
+
+    const validateForm = () => {
+      const isValid = cardName.value.trim().length > 0 &&
+                      cardNumber.value.replace(/\s/g, '').length >= 15 &&
+                      cardExpiry.value.trim().length === 5 &&
+                      cardCVV.value.trim().length >= 3;
+      
+      cardConfirmBtn.disabled = !isValid;
+    };
+
+    // Remove any previous duplicate listeners before applying new ones
+    inputElements.forEach(input => {
+      input.removeEventListener('input', validateForm);
+      input.addEventListener('input', validateForm);
+    });
+
+    validateForm();
+  }
 }
 
 // Instantiate App
@@ -281,3 +345,4 @@ window.setFilter = (tag, btn) => {
     card.style.display = tags.includes(tag) ? '' : 'none';
   });
 };
+

@@ -21,7 +21,7 @@ class Observable {
 class MenuCatalog {
   constructor() {
     // Dynamic container tracking special card items
-    this.specialItem = { id: 'special-item', name: "Truffle Scrambled Eggs", price: 285, stocks: 5 };
+    this.specialItem = { id: 'special-item', name: "Scrambled Eggs", price: 285, stocks: 5 };
 
     this.categories = {
       breakfast: [
@@ -43,7 +43,7 @@ class MenuCatalog {
       ],
       drinks: [
         new DrinkItem('d1', "Espresso", 115, "Single or double shot of our house blend.", "☕", 99),
-        new DrinkItem('d4', "Iced Latte", 175, "Espresso over ice, topped with cold milk.", "🧋", 99),
+        new DrinkItem('d4', "Iced Latte", 175, "Espresso over ice, topped with cold milk.", "🧊☕", 99),
         new DrinkItem('d5', "Matcha Latte", 185, "Ceremonial grade matcha, steamed milk.", "🍵", 99)
       ]
     };
