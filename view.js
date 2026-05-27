@@ -166,7 +166,7 @@ class UIManager {
       }
     }
 
-    // Checkout button — disabled if no selection or empty cart
+    // ── CHECKOUT BUTTON RULES ──
     const checkoutBtn = document.getElementById('checkout-btn');
     if (checkoutBtn) {
       checkoutBtn.disabled = (ids.length === 0 || !selectedTableId);
