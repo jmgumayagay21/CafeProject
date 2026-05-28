@@ -986,3 +986,57 @@ body{font-family:'Outfit',sans-serif;background:var(--bg);color:var(--text);min-
   margin-bottom: 4px;
   font-style: italic;
 }
+/* ── PAYMENT MODAL ── */
+.payment-btn {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 18px 24px;
+  border-radius: 16px;
+  border: 0.5px solid var(--border2);
+  background: var(--surface2);
+  color: var(--cream);
+  font-family: 'Outfit', sans-serif;
+  font-size: 15px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+  text-align: left;
+}
+
+.payment-btn:hover {
+  border-color: var(--gold);
+  background: var(--gold-dim);
+  color: var(--gold);
+  transform: translateY(-2px);
+}
+
+.payment-btn-icon {
+  font-size: 22px;
+}
+
+/* ── CARD FORM ── */
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.form-label {
+  font-size: 11px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: var(--text-dim);
+}
+
+.form-input {
+  background: rgba(255,255,255,0.03);
+  border: 0.5px solid var(--border2);
+  color: var(--cream);
+  padding: 14px 16px;
+  border-radius: 12px;
+  font-family: 'Outfit', sans-serif;
+  font-size: 14px;
+  outline: none;
+  transition: all 0.2s;
+}

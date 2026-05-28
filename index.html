@@ -252,21 +252,27 @@
       <button class="payment-btn" onclick="app.ui.showCardForm()">
         <span class="payment-btn-icon">💳</span> Credit / Debit Card
       </button>
-      <button class="payment-btn" onclick="app.ui.showGCashQR()">
-        <span class="payment-btn-icon">📱</span> GCash
+      <button class="payment-btn" onclick="app.ui.showQRPayment()">
+        <span class="payment-btn-icon">📱</span> QR Payment
       </button>
     </div>
 
     <div id="payment-step-2" style="display:none; flex-direction:column; align-items:center; gap:20px;">
-      <div style="background: white; padding: 16px; border-radius: 16px; width: 100%; max-width: 280px; box-shadow: 0 8px 32px rgba(0,0,0,0.3);">
-        <img src="image_fb411d.jpg" alt="GCash QR Code" style="width: 100%; height: auto; border-radius: 8px;">
+      
+      <div style="background: white; width: 250px; height: 250px; border-radius: 16px; overflow: hidden; box-shadow: 0 8px 32px rgba(0,0,0,0.3); display: flex; justify-content: center; align-items: center;">
+        
+        <img src="https://raw.githubusercontent.com/jmgumayagay21/CafeProject/main/Media.jpg" alt="GCash QR Code" style="width: 230px; max-width: none; margin-top: -10px;">
+      
       </div>
+      
       <p style="font-size: 13px; color: var(--text-dim); text-align: center; line-height: 1.6;">
         Scan the QR code using your GCash app.<br>Tap confirm below once the transfer is complete.
       </p>
+      
       <button class="checkout-btn" onclick="placeOrder('GCash')">
         I have paid via GCash →
       </button>
+      
     </div>
 
     <div id="payment-step-3" style="display:none; flex-direction:column; gap:16px;">

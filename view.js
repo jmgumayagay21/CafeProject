@@ -346,7 +346,7 @@ const placeOrderBtn = document.getElementById('real-place-order-btn');
     };
   }
 
-  showGCashQR() {
+  showQRPayment() {
     // Display Step 2 QR layout options properly, hide the rest
     document.getElementById('payment-step-1').style.display = 'none';
     document.getElementById('payment-step-2').style.display = 'flex';
@@ -369,7 +369,7 @@ const placeOrderBtn = document.getElementById('real-place-order-btn');
   showCardForm() {
   // Hide initial payment options matrix
   document.getElementById('payment-step-1').style.display = 'none';
-  // Hide GCash container if active
+  // Hide QR Payment container if active
   document.getElementById('payment-step-2').style.display = 'none';
   
   // Reveal the hidden credit/debit card details form
