@@ -1040,3 +1040,14 @@ body{font-family:'Outfit',sans-serif;background:var(--bg);color:var(--text);min-
   outline: none;
   transition: all 0.2s;
 }
+
+.form-input:focus {
+  border-color: var(--gold);
+  background: rgba(212, 168, 83, 0.05);
+  box-shadow: 0 0 0 3px rgba(212, 168, 83, 0.1);
+}
+
+.form-input::placeholder {
+  color: var(--text-dim);
+  opacity: 0.4;
+}

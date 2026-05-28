@@ -316,7 +316,11 @@ const placeOrderBtn = document.getElementById('real-place-order-btn');
           <span class="qb-label">Your order · ${loc}</span>
           <span class="qb-timer">${pad(mins)}<em>:</em>${pad(secs)}<span class="qb-unit"> remaining</span></span>
         </div>
-        <button class="qb-close" onclick="app.ui.hideQueueBanner()">✕</button>
+        <div class="qb-actions">
+          <button class="qb-view" onclick="app.ui.showQueueList()">View Queue</button>
+          <button class="qb-cancel" onclick="app.cancelOrder()">Cancel Order</button>
+          <button class="qb-close" onclick="app.ui.hideQueueBanner()">✕</button>
+        </div>
       </div>`;
     banner.classList.add('visible');
   }
@@ -325,6 +329,58 @@ const placeOrderBtn = document.getElementById('real-place-order-btn');
     const banner = document.getElementById('queue-banner');
     if (banner) banner.classList.remove('visible');
   }
+
+  // Small modal to show current orders in the queue
+  showQueueList() {
+    // remove existing if present
+    let modal = document.getElementById('queue-list-modal');
+    if (modal) return;
+
+    modal = document.createElement('div');
+    modal.id = 'queue-list-modal';
+    modal.className = 'queue-list-modal';
+
+    const orders = (window.app && window.app.queue && window.app.queue.orders) ? window.app.queue.orders : [];
+
+    const listHTML = orders.length === 0
+      ? '<div class="ql-empty">No active orders.</div>'
+      : `<div class="ql-list">${orders.map((o, i) => {
+          const isFirst = i === 0;
+          const items = Object.keys(o.items || {}).map(k => `${o.items[k].qty}× ${o.items[k].name || k}`).join('<br>');
+          const ts = o.timestamp ? new Date(o.timestamp).toLocaleTimeString() : '';
+          return `<div class="ql-item ${isFirst? 'first':''}">
+                    <div style="display:flex;justify-content:space-between;align-items:center;gap:8px">
+                      <div>
+                        <div class="ql-pos">#${i+1}${isFirst? ' · First':''}</div>
+                        <div class="ql-meta">Prep: ${o.prepTime || '-'} min ${ts? '· ' + ts : ''}</div>
+                      </div>
+                      <div>
+                        <button class="ql-item-cancel" onclick="app.cancelQueueAt(${i+1})">Cancel</button>
+                      </div>
+                    </div>
+                    <div class="ql-items">${items}</div>
+                  </div>`;
+        }).join('')}</div>`;
+
+    modal.innerHTML = `
+      <div class="ql-inner">
+        <div class="ql-head">
+          <h3>Current Queue (${orders.length})</h3>
+          <button class="close-btn ql-close">✕</button>
+        </div>
+        <div class="ql-body">${listHTML}</div>
+      </div>`;
+
+    document.body.appendChild(modal);
+
+    modal.querySelector('.ql-close').addEventListener('click', () => this.hideQueueList());
+  }
+
+  hideQueueList() {
+    const modal = document.getElementById('queue-list-modal');
+    if (modal) modal.remove();
+  }
+
 
 // ─── PAYMENT UI METHODS ───
 
@@ -391,6 +447,10 @@ const placeOrderBtn = document.getElementById('real-place-order-btn');
       this.showPaymentOptions();
     };
   }
+
+  // Wire up card input validation after the form is visible in the DOM
+  if (window.app) window.app.setupPaymentValidationListeners();
+
 }
 }
 

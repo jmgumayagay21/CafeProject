@@ -11,6 +11,9 @@ class CafeController {
     this.selectedTableId = null;
     this.orderType = null; // 'dine-in' | 'pickup'
     this._queueTimerInterval = null;
+    this.lastOrderDocId = null;
+    this.lastOrderTableId = null;
+    this.lastOrderType = null;
 
     this.cart.subscribe(() => {
       this.updateCartView();
@@ -173,6 +176,10 @@ class CafeController {
       paymentMethod: paymentMethod // Store the selected payment method
     };
 
+    this.lastOrderDocId = null;
+    this.lastOrderTableId = this.selectedTableId;
+    this.lastOrderType = this.orderType;
+
     // Firebase Data Transmit Call
     this.saveOrderToFirebase(orderSummary, stats, newOrder.items);
 
@@ -231,8 +238,8 @@ class CafeController {
         }
 
         // Write order receipt log entry to database
-        // Write order receipt log entry to database
-        await addDoc(collection(db, "orders"), {
+        const orderRef = doc(collection(db, "orders"));
+        transaction.set(orderRef, {
           queueNumber: summary.position,
           orderType: summary.type,
           tableId: summary.table,
@@ -241,9 +248,11 @@ class CafeController {
           totalPaid: summary.total,
           paymentMethod: summary.paymentMethod, // NEW DATA FIELD
           estimatedWait: summary.waitTime,
-          items: cartItems, 
+          items: cartItems,
+          status: 'pending',
           createdAt: serverTimestamp()
         });
+        this.lastOrderDocId = orderRef.id;
       });
 
       console.log("🎉 Secure stock deduction and order synchronization complete!");
@@ -251,6 +260,96 @@ class CafeController {
       console.error("Transaction failed: ", error);
       this.ui.showToast("⚠️ " + error);
     }
+  }
+
+  async cancelOrder() {
+    if (this.lastOrderDocId && window.firebaseDB && window.dbMethods) {
+      const db = window.firebaseDB;
+      const { doc, runTransaction, serverTimestamp } = window.dbMethods;
+      try {
+        await runTransaction(db, async (transaction) => {
+          const orderRef = doc(db, "orders", this.lastOrderDocId);
+          const orderSnap = await transaction.get(orderRef);
+          if (!orderSnap.exists()) return;
+          transaction.update(orderRef, {
+            status: 'cancelled',
+            cancelledAt: serverTimestamp()
+          });
+        });
+        console.log("Order cancelled in database.");
+      } catch (error) {
+        console.error("Cancel order failed: ", error);
+      }
+    }
+
+    // Stop and clear any active queue countdown so it doesn't re-show the banner
+    if (this._queueTimerInterval) {
+      clearInterval(this._queueTimerInterval);
+      this._queueTimerInterval = null;
+    }
+
+    // Remove the order from the queue by its recorded position (if present)
+    const posToRemove = this.activeQueuePosition;
+    if (posToRemove && this.queue && Array.isArray(this.queue.orders)) {
+      // positions are 1-based in the UI, convert to 0-based index
+      const idx = posToRemove - 1;
+      if (idx >= 0 && idx < this.queue.orders.length) {
+        this.queue.orders.splice(idx, 1);
+      }
+    }
+
+    if (this.lastOrderTableId && this.lastOrderType !== 'pickup') {
+      const table = this.seating.getTables().find(t => t.id === this.lastOrderTableId);
+      if (table && table.isOccupied) {
+        table.free();
+      }
+    }
+
+    this.activeQueuePosition = null;
+    this.activeQueueWait = null;
+    this.lastOrderDocId = null;
+    this.lastOrderTableId = null;
+    this.lastOrderType = null;
+
+    this.cart.clear();
+    this.ui.hideQueueBanner();
+    this.ui.togglePaymentModal(false);
+    this.ui.toggleCart(false);
+    this.updateCartView();
+    this.ui.showToast("Order cancelled.");
+  }
+
+  // Cancel a specific order in the in-memory queue by its 1-based position
+  cancelQueueAt(position) {
+    if (!position || !this.queue || !Array.isArray(this.queue.orders)) return;
+    const idx = position - 1;
+    if (idx < 0 || idx >= this.queue.orders.length) return;
+
+    // If cancelling the currently active order (the one with countdown), delegate to cancelOrder
+    if (this.activeQueuePosition === position) {
+      this.cancelOrder();
+      return;
+    }
+
+    // Remove the specified order from queue
+    this.queue.orders.splice(idx, 1);
+
+    // Adjust tracked active position if necessary
+    if (this.activeQueuePosition && position < this.activeQueuePosition) {
+      this.activeQueuePosition = Math.max(1, this.activeQueuePosition - 1);
+    }
+
+    // If required, adjust activeQueuePosition if it now falls outside queue bounds
+    if (this.activeQueuePosition && this.activeQueuePosition > this.queue.orders.length) {
+      // when the active position was removed (earlier in the queue), reset to first
+      this.activeQueuePosition = this.queue.orders.length > 0 ? 1 : null;
+    }
+
+    // Close the queue list modal (if open) and refresh UI
+    try { this.ui.hideQueueList(); } catch (e) { /* ignore */ }
+    this.updateCartView();
+    console.log(`Cancelled queue position ${position}. Remaining orders: ${this.queue.orders.length}`);
+    this.ui.showToast(`Order #${position} cancelled.`);
   }
 
   _startQueueCountdown(orderSummary) {
@@ -310,6 +409,7 @@ class CafeController {
     };
 
     // Remove any previous duplicate listeners before applying new ones
+    const inputElements = [cardName, cardNumber, cardExpiry, cardCVV];
     inputElements.forEach(input => {
       input.removeEventListener('input', validateForm);
       input.addEventListener('input', validateForm);
@@ -345,4 +445,3 @@ window.setFilter = (tag, btn) => {
     card.style.display = tags.includes(tag) ? '' : 'none';
   });
 };
-
