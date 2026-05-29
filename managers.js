@@ -42,9 +42,9 @@ class MenuCatalog {
         new FoodItem('s3', "Croissant (Plain / Almond)", 120, "Buttery, flaky layers...", [], 10)
       ],
       drinks: [
-        new DrinkItem('d1', "Espresso", 115, "Single or double shot of our house blend.", "☕", 99),
-        new DrinkItem('d4', "Iced Latte", 175, "Espresso over ice, topped with cold milk.", "🧊☕", 99),
-        new DrinkItem('d5', "Matcha Latte", 185, "Ceremonial grade matcha, steamed milk.", "🍵", 99)
+        new DrinkItem('d1', "Americano", 115, "Rich espresso diluted with hot or cold water for a smooth, robust finish.", "☕", 50),
+        new DrinkItem('d4', "Latte", 175, "Smooth espresso balanced with steamed milk and a light layer of foam.", "☕", 50),
+        new DrinkItem('d5', "Matcha Latte", 185, "Ceremonial grade matcha, steamed milk.", "🍵", 50)
       ]
     };
   }
@@ -69,7 +69,7 @@ class MenuCatalog {
     const ctrl = document.getElementById('special-qty-ctrl');
     if (btn && ctrl) {
       if (stocksCount <= 0) {
-        btn.innerHTML = "Out of Stock";
+        btn.innerHTML = "Not Available";
         btn.disabled = true;
         btn.style.cssText = "background:rgba(208,96,96,0.1); border-color:rgba(208,96,96,0.3); color:#d06060; cursor:not-allowed;";
         ctrl.style.display = "none";

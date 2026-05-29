@@ -54,8 +54,17 @@ class CafeTable {
     this.occupiedSince = null;
   }
 
-  getOccupiedTimeString() {
+  // REPLACED: getOccupiedTimeString() is now getOccupiedDurationString()
+  getOccupiedDurationString() {
     if (!this.occupiedSince) return "";
-    return this.occupiedSince.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    const diffMs = new Date() - this.occupiedSince;
+    const diffMins = Math.floor(diffMs / 60000);
+    
+    if (diffMins < 1) return "Just now";
+    const hours = Math.floor(diffMins / 60);
+    const mins = diffMins % 60;
+    
+    if (hours > 0) return `${hours}h ${mins}m`;
+    return `${mins}m`;
   }
 }

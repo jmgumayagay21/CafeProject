@@ -8,38 +8,34 @@ class CafeController {
     
     this.activeQueuePosition = null;
     this.activeQueueWait = null;
-    this.selectedTableId = null;
-    this.orderType = null; // 'dine-in' | 'pickup'
+    this.selectedTableIds = []; 
+    this.orderType = null; 
     this._queueTimerInterval = null;
-    this.lastOrderTableId = null;
+    this.lastOrderTableIds = []; 
     this.lastOrderType = null;
-    this.pickupTime = null; // 05/29: NEW: Track pickup time
+    this.pickupTime = null; 
 
     this.cart.subscribe(() => {
       this.updateCartView();
     });
 
-    this.init();
-  }
-
-  init() {
+    // FIX: Load initial views immediately so the app doesn't crash or show a blank menu
     this.ui.renderMenu(this.catalog);
     this.updateCartView();
   }
 
   updateCartView() {
-    // NEW: Pass pickupTime down to the UI
     this.ui.updateCart(
       this.cart,
       this.activeQueuePosition,
       this.queue.getLength(),
-      this.selectedTableId,
+      this.selectedTableIds, // Pass the array down
       this.seating.getAvailableCount(),
       this.orderType,
       this.activeQueueWait,
       this.pickupTime 
     );
-    this.ui.renderSeating(this.seating, this.selectedTableId);
+    this.ui.renderSeating(this.seating, this.selectedTableIds); // Pass array
   }
 
   // NEW: Method to handle pickup time selection
@@ -47,13 +43,14 @@ class CafeController {
     this.pickupTime = time;
   }
 
+  // ─── ORDER TYPE ───
+
   setOrderType(type) {
     this.orderType = type; // 'dine-in' | 'pickup'
     if (type === 'pickup') {
       this.selectedTableId = 'takeout';
     } else {
       this.selectedTableId = null;
-      this.pickupTime = null; // Clear pick up time if switched to dine-in
       this.ui.toggleCart(false);
       this.ui.toggleSeatingModal(true);
     }
@@ -114,18 +111,52 @@ class CafeController {
   }
 
   addDrinkToCart(id, name, price) {
-  const sugarLevel = document.getElementById('sugar-' + id).value;
-  const formattedName = sugarLevel !== 'Regular' ? `${name} (${sugarLevel})` : name;
-  const uniqueId = sugarLevel !== 'Regular' ? `${id}-${sugarLevel}` : id;
-  
-  // 1. Process cart addition via unique item ID metadata
-  this.addToCart(uniqueId, formattedName, price);
-  
-  // 2. Explicitly target and reset the underlying base view element to 0
-  if (this.ui.preQty[id]) this.ui.preQty[id] = 0; 
-  const el = document.getElementById('qn-' + id);
-  if (el) el.textContent = 0;
-}
+    const temp = document.getElementById('temp-' + id).value;
+    const size = document.getElementById('size-' + id).value;
+    const sugarLevel = document.getElementById('sugar-' + id).value;
+    const addon = document.getElementById('addon-' + id).value;
+
+    let additionalPrice = 0;
+    let details = [];
+
+    // Add Temperature
+    details.push(temp);
+
+    // Add Size & update price
+    if (size !== 'Regular') {
+      details.push('Large');
+      additionalPrice += 20;
+    }
+
+    // Add Sugar
+    if (sugarLevel !== 'Regular') {
+      details.push(sugarLevel + ' Sugar');
+    }
+
+    // Add Add-ons & update price
+    if (addon !== 'None') {
+      if (addon === 'Espresso Shot') {
+        details.push('+Shot');
+        additionalPrice += 30;
+      } else if (addon === 'Oat Milk') {
+        details.push('+Oat');
+        additionalPrice += 30;
+      }
+    }
+
+    const finalPrice = price + additionalPrice;
+    const formattedName = `${name} (${details.join(', ')})`;
+    // Create a unique cart ID so different variations don't merge into one
+    const uniqueId = `${id}-${details.join('-').replace(/\s+/g, '')}`;
+    
+    // 1. Process cart addition via unique item ID metadata
+    this.addToCart(uniqueId, formattedName, finalPrice);
+    
+    // 2. Explicitly target and reset the underlying base view element to 0
+    if (this.ui.preQty[id]) this.ui.preQty[id] = 0; 
+    const el = document.getElementById('qn-' + id);
+    if (el) el.textContent = 0;
+  }
 
   // ─── ORDER TYPE ───
 
@@ -143,39 +174,42 @@ class CafeController {
 
   // ─── SEATING ───
 
+  // ALLOW MULTIPLE SELECTIONS
   selectTable(id) {
     const table = this.seating.getTables().find(t => t.id === id);
     if (table.isOccupied) {
       this.ui.showToast("This table is currently occupied.");
       return;
     }
-    this.selectedTableId = (this.selectedTableId === id) ? null : id;
+    
+    // Toggle the ID inside the array
+    if (this.selectedTableIds.includes(id)) {
+      this.selectedTableIds = this.selectedTableIds.filter(tId => tId !== id);
+    } else {
+      this.selectedTableIds.push(id);
+    }
+
     this.orderType = 'dine-in';
     this.updateCartView();
-    this.ui.toggleSeatingModal(false);
-    this.ui.toggleCart(true);
+    // Removed toggleSeatingModal(false) so the user can continue clicking multiple tables
   }
 
   setTakeout() {
-    this.selectedTableId = 'takeout';
+    this.selectedTableIds = ['takeout'];
     this.orderType = 'pickup';
     this.updateCartView();
   }
 
-  // Update 5/27/26: For payment processing, we need to ensure the seating status is correctly reflected in the UI and database when an order is placed. This method will be called after a successful order placement to free up the table if it's a dine-in order.
-
- // ─── CHECKOUT & PAYMENT ───
-
   proceedToPayment() {
-    if (!this.selectedTableId) {
+    if (this.selectedTableIds.length === 0) {
       this.ui.showToast("⚠️ Please select a seat or choose Pickup before ordering.");
       return;
     }
     this.ui.showPaymentOptions();
   }
 
-placeOrder(paymentMethod) {
-    if (!this.selectedTableId) return;
+  placeOrder(paymentMethod) {
+    if (this.selectedTableIds.length === 0) return;
 
     const stats = this.cart.getTotals();
     const newOrder = new Order({...this.cart.getItems()}, stats.estimatedTime);
@@ -183,30 +217,31 @@ placeOrder(paymentMethod) {
     const waitTime = this.queue.getEstimatedWait(this.activeQueuePosition, stats.estimatedTime);
     this.activeQueueWait = waitTime;
 
-    if (this.selectedTableId !== 'takeout') {
-      this.seating.toggleTableStatus(this.selectedTableId);
+    // Toggle all selected tables to occupied
+    if (!this.selectedTableIds.includes('takeout')) {
+      this.selectedTableIds.forEach(id => this.seating.toggleTableStatus(id));
     }
 
     const orderSummary = {
       position: this.activeQueuePosition,
       waitTime,
       type: this.orderType,
-      table: this.selectedTableId,
+      table: this.selectedTableIds.join(', '), // Format array for UI display
       total: stats.total,
       paymentMethod: paymentMethod,
-      pickupTime: this.pickupTime // NEW: Include in summary
+      pickupTime: this.pickupTime 
     };
 
     this.lastOrderDocId = null;
-    this.lastOrderTableId = this.selectedTableId;
+    this.lastOrderTableIds = [...this.selectedTableIds]; // Store array for cancellation
     this.lastOrderType = this.orderType;
 
-  this.saveOrderToFirebase(orderSummary, stats, newOrder.items);
+    this.saveOrderToFirebase(orderSummary, stats, newOrder.items);
 
     this.cart.clear();
-    this.selectedTableId = null;
+    this.selectedTableIds = [];
     this.orderType = null;
-    this.pickupTime = null; // Reset pickup time
+    this.pickupTime = null;
 
     this.ui.togglePaymentModal(false);
     this.ui.toggleCart(false);
@@ -319,17 +354,20 @@ placeOrder(paymentMethod) {
       }
     }
 
-    if (this.lastOrderTableId && this.lastOrderType !== 'pickup') {
-      const table = this.seating.getTables().find(t => t.id === this.lastOrderTableId);
-      if (table && table.isOccupied) {
-        table.free();
-      }
+    // Free multiple tables
+    if (this.lastOrderTableIds && this.lastOrderType !== 'pickup') {
+      this.lastOrderTableIds.forEach(id => {
+        const table = this.seating.getTables().find(t => t.id === id);
+        if (table && table.isOccupied) {
+          table.free();
+        }
+      });
     }
-
+    
     this.activeQueuePosition = null;
     this.activeQueueWait = null;
     this.lastOrderDocId = null;
-    this.lastOrderTableId = null;
+    this.lastOrderTableIds = null;
     this.lastOrderType = null;
 
     this.cart.clear();

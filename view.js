@@ -26,14 +26,14 @@ class UIManager {
 
   createFoodCard(item) {
     const isAvailable = item.stocks > 0;
-    const currentQty = this.preQty[item.id] || 0; // ADD THIS LINE
+    const currentQty = this.preQty[item.id] || 0; 
       return`
       <div class="menu-card" data-id="${item.id}" data-tags="${item.tags.join(' ')}">
         <div class="card-top">
           <p class="item-name">${item.name}</p>
           <p class="item-price">₱${item.price}</p>
         </div>
-        <p class="item-desc">${item.desc} <span style="color:var(--gold-light); display:block; margin-top:4px; font-size:11px;">${isAvailable ? `Stock: ${item.stocks}` : 'SOLD OUT'}</span></p>
+        <p class="item-desc">${item.desc} <span style="color:var(--gold-light); display:block; margin-top:4px; font-size:11px;">${isAvailable ? `Available: ${item.stocks}` : 'NOT AVAILABLE'}</span></p>
         <div class="card-bottom">
           <div class="tags">${this.tagHTML(item.tags)}</div>
           <div class="add-wrap">
@@ -45,7 +45,7 @@ class UIManager {
               </div>
               <button class="add-btn" onclick="app.addToCart('${item.id}', '${item.name.replace(/'/g, "\\'")}', ${item.price})">+ Add</button>
             ` : `
-              <button class="add-btn" style="background:rgba(208,96,96,0.1); border-color:rgba(208,96,96,0.3); color:#d06060; cursor:not-allowed;" disabled>Out of Stock</button>
+              <button class="add-btn" style="background:rgba(208,96,96,0.1); border-color:rgba(208,96,96,0.3); color:#d06060; cursor:not-allowed;" disabled>Not Available</button>
             `}
           </div>
         </div>
@@ -59,33 +59,59 @@ class UIManager {
       <div class="drink-card">
         <div class="drink-icon">${drink.icon}</div>
         <p class="drink-name">${drink.name}</p>
-        <p class="drink-desc">${drink.desc} <span style="color:var(--gold-light); display:block; font-size:11px;">${isAvailable ? `Stock: ${drink.stocks}` : 'SOLD OUT'}</span></p>
+        <p class="drink-desc">${drink.desc} <span style="color:var(--gold-light); display:block; font-size:11px; margin-top:4px;">${isAvailable ? `Available: ${drink.stocks}` : 'NOT AVAILABLE'}</span></p>
         <p class="drink-price">₱${drink.price}</p>
-        <div class="drink-sugar">
-          <label>Sugar</label>
-          <select id="sugar-${drink.id}" class="sugar-select" ${!isAvailable ? 'disabled' : ''}>
-            <option value="Regular">Regular</option>
-            <option value="50%">50%</option>
-            <option value="No sugar">No sugar</option>
-          </select>
+        
+        <div class="drink-options">
+          <div class="drink-opt-row">
+            <label>Temp</label>
+            <select id="temp-${drink.id}" class="drink-select" ${!isAvailable ? 'disabled' : ''}>
+              <option value="Hot">Hot</option>
+              <option value="Cold">Cold</option>
+            </select>
+          </div>
+          <div class="drink-opt-row">
+            <label>Size</label>
+            <select id="size-${drink.id}" class="drink-select" ${!isAvailable ? 'disabled' : ''}>
+              <option value="Regular">Regular</option>
+              <option value="Large">Large (+₱20)</option>
+            </select>
+          </div>
+          <div class="drink-opt-row">
+            <label>Sugar</label>
+            <select id="sugar-${drink.id}" class="drink-select" ${!isAvailable ? 'disabled' : ''}>
+              <option value="Regular">Regular</option>
+              <option value="50%">50%</option>
+              <option value="No sugar">No sugar</option>
+            </select>
+          </div>
+          <div class="drink-opt-row">
+            <label>Add-on</label>
+            <select id="addon-${drink.id}" class="drink-select" ${!isAvailable ? 'disabled' : ''}>
+              <option value="None">None</option>
+              <option value="Espresso Shot">Espresso Shot (+₱30)</option>
+              <option value="Oat Milk">Oat Milk (+₱30)</option>
+            </select>
+          </div>
         </div>
-        <div class="drink-add">
+
+        <div class="drink-add-row">
           ${isAvailable ? `
             <div class="qty-ctrl visible" id="qc-${drink.id}">
                 <button class="qty-btn" onclick="app.changePreQty('${drink.id}', -1)">−</button>
                 <span class="qty-num" id="qn-${drink.id}">0</span>
                 <button class="qty-btn" onclick="app.changePreQty('${drink.id}', 1)">+</button>
-              </div>
+            </div>
             <button class="add-btn" onclick="app.addDrinkToCart('${drink.id}', '${drink.name.replace(/'/g, "\\'")}', ${drink.price})">+ Add</button>
           ` : `
-            <button class="add-btn" style="background:rgba(208,96,96,0.1); border-color:rgba(208,96,96,0.3); color:#d06060; width:95%; justify-content:center; cursor:not-allowed;" disabled>Out of Stock</button>
+            <button class="add-btn" style="background:rgba(208,96,96,0.1); border-color:rgba(208,96,96,0.3); color:#d06060; width:100%; justify-content:center; cursor:not-allowed;" disabled>Not Available</button>
           `}
         </div>
       </div>
     `;
   }
 
-  updateCart(cart, queuePos, queueLen, selectedTableId, availableCount, orderType, activeWaitTime, pickupTime) {
+  updateCart(cart, queuePos, queueLen, selectedTableIds, availableCount, orderType, activeWaitTime, pickupTime) { // FIXED: changed to selectedTableIds
     const stats = cart.getTotals();
     const items = cart.getItems();
     const ids   = Object.keys(items);
@@ -142,12 +168,13 @@ class UIManager {
             </button>
           </div>`;
       } else {
-        const dineLabel = isDineIn && selectedTableId
-          ? `🪑 Table ${selectedTableId} — Change?`
+        // FIXED: Now correctly checks the array length
+        const hasTables = selectedTableIds && selectedTableIds.length > 0 && !selectedTableIds.includes('takeout');
+        const dineLabel = isDineIn && hasTables
+          ? `🪑 Tables: ${selectedTableIds.join(', ')} — Edit`
           : `🪑 Dine In`;
         const pickupLabel = isPickup ? `✓ Store Pickup Selected` : `🛍️ Store Pickup`;
 
-     // NEW: Injected the Time Input field if the user selects Pickup
         seatUI.innerHTML = `
           <div class="order-type-toggle">
             <button class="order-type-btn ${isDineIn ? 'order-type-btn--active' : ''}"
@@ -159,7 +186,7 @@ class UIManager {
               ${pickupLabel}
             </button>
           </div>
-          ${isDineIn && !selectedTableId ? `<p class="seat-hint">👆 Select a table from the floor plan</p>` : ''}
+          ${isDineIn && (!selectedTableIds || selectedTableIds.length === 0) ? `<p class="seat-hint">👆 Select a table from the floor plan</p>` : ''}
           
           ${isPickup ? `
             <div style="margin-top: 12px; margin-bottom: 8px; display: flex; align-items: center; justify-content: space-between; background: rgba(255,255,255,0.03); padding: 10px 14px; border-radius: 12px; border: 0.5px solid var(--border);">
@@ -173,30 +200,35 @@ class UIManager {
 
     const checkoutBtn = document.getElementById('checkout-btn');
     if (checkoutBtn) {
-      checkoutBtn.disabled = (ids.length === 0 || !selectedTableId);
+      checkoutBtn.disabled = (ids.length === 0 || !selectedTableIds || selectedTableIds.length === 0);
     }
+
+
 const placeOrderBtn = document.getElementById('real-place-order-btn');
     if (placeOrderBtn) {
       placeOrderBtn.disabled = (ids.length === 0 || !selectedTableId);
     }
   }
 
-  renderSeating(seatingManager, selectedTableId) {
+  // Change selectedTableId to selectedTableIds array
+  renderSeating(seatingManager, selectedTableIds) {
     const container = document.getElementById('floor-plan');
     if (!container) return;
 
-    const tables      = seatingManager.getTables();
+    // FIX: Restored the missing table and availability variables
+    const tables = seatingManager.getTables();
+    const available = seatingManager.getAvailableCount();
+    const total = tables.length;
+    const occupied = total - available;
+
     const smallTables = tables.filter(t => t.type === 'small');
     const largeTables = tables.filter(t => t.type === 'large');
-    const barTables   = tables.filter(t => t.type === 'bar');
-    const available   = seatingManager.getAvailableCount();
-    const total       = tables.length;
-    const occupied    = total - available;
+    const barTables = tables.filter(t => t.type === 'bar');
 
     const createTableHTML = (t) => {
       let statusClass = 'available';
-      if (t.isOccupied)                   statusClass = 'occupied';
-      else if (t.id === selectedTableId)  statusClass = 'selected';
+      if (t.isOccupied) statusClass = 'occupied';
+      else if (selectedTableIds && selectedTableIds.includes(t.id)) statusClass = 'selected';
 
       const label = t.type === 'small' ? `S${t.id.replace('t-s','')}`
                   : t.type === 'large' ? `L${t.id.replace('t-L','')}`
@@ -207,11 +239,11 @@ const placeOrderBtn = document.getElementById('real-place-order-btn');
       return `
         <div class="table-node table-${t.type} ${statusClass}"
              onclick="app.selectTable('${t.id}')"
-             title="${statusClass === 'occupied' ? `Occupied since ${t.getOccupiedTimeString()}` : statusClass === 'selected' ? 'Your table' : `Available · ${t.capacity} seats`}">
+             title="${statusClass === 'occupied' ? `Occupied for ${t.getOccupiedDurationString()}` : statusClass === 'selected' ? 'Your table' : `Available · ${t.capacity} seats`}">
           <span class="table-id">${label}</span>
           ${t.isOccupied
-            ? `<span class="time-stamp">since ${t.getOccupiedTimeString()}</span>`
-            : (t.id === selectedTableId ? '' : capacityIcon)
+            ? `<span class="time-stamp">${t.getOccupiedDurationString()}</span>`
+            : (selectedTableIds.includes(t.id) ? '' : capacityIcon)
           }
         </div>`;
     };
