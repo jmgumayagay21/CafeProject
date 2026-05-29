@@ -11,9 +11,9 @@ class CafeController {
     this.selectedTableId = null;
     this.orderType = null; // 'dine-in' | 'pickup'
     this._queueTimerInterval = null;
-    this.lastOrderDocId = null;
     this.lastOrderTableId = null;
     this.lastOrderType = null;
+    this.pickupTime = null; // 05/29: NEW: Track pickup time
 
     this.cart.subscribe(() => {
       this.updateCartView();
@@ -28,6 +28,7 @@ class CafeController {
   }
 
   updateCartView() {
+    // NEW: Pass pickupTime down to the UI
     this.ui.updateCart(
       this.cart,
       this.activeQueuePosition,
@@ -35,9 +36,28 @@ class CafeController {
       this.selectedTableId,
       this.seating.getAvailableCount(),
       this.orderType,
-      this.activeQueueWait
+      this.activeQueueWait,
+      this.pickupTime 
     );
     this.ui.renderSeating(this.seating, this.selectedTableId);
+  }
+
+  // NEW: Method to handle pickup time selection
+  setPickupTime(time) {
+    this.pickupTime = time;
+  }
+
+  setOrderType(type) {
+    this.orderType = type; // 'dine-in' | 'pickup'
+    if (type === 'pickup') {
+      this.selectedTableId = 'takeout';
+    } else {
+      this.selectedTableId = null;
+      this.pickupTime = null; // Clear pick up time if switched to dine-in
+      this.ui.toggleCart(false);
+      this.ui.toggleSeatingModal(true);
+    }
+    this.updateCartView();
   }
 
   // ─── CART FUNCTIONS ───
@@ -154,7 +174,7 @@ class CafeController {
     this.ui.showPaymentOptions();
   }
 
-  placeOrder(paymentMethod) {
+placeOrder(paymentMethod) {
     if (!this.selectedTableId) return;
 
     const stats = this.cart.getTotals();
@@ -173,21 +193,21 @@ class CafeController {
       type: this.orderType,
       table: this.selectedTableId,
       total: stats.total,
-      paymentMethod: paymentMethod // Store the selected payment method
+      paymentMethod: paymentMethod,
+      pickupTime: this.pickupTime // NEW: Include in summary
     };
 
     this.lastOrderDocId = null;
     this.lastOrderTableId = this.selectedTableId;
     this.lastOrderType = this.orderType;
 
-    // Firebase Data Transmit Call
-    this.saveOrderToFirebase(orderSummary, stats, newOrder.items);
+  this.saveOrderToFirebase(orderSummary, stats, newOrder.items);
 
     this.cart.clear();
     this.selectedTableId = null;
     this.orderType = null;
+    this.pickupTime = null; // Reset pickup time
 
-    // Close both modals
     this.ui.togglePaymentModal(false);
     this.ui.toggleCart(false);
     
@@ -246,7 +266,8 @@ class CafeController {
           subtotal: stats.subtotal,
           tax: stats.tax,
           totalPaid: summary.total,
-          paymentMethod: summary.paymentMethod, // NEW DATA FIELD
+          paymentMethod: summary.paymentMethod, 
+          pickupTime: summary.pickupTime || null, // NEW DATA FIELD
           estimatedWait: summary.waitTime,
           items: cartItems,
           status: 'pending',
@@ -352,6 +373,7 @@ class CafeController {
     this.ui.showToast(`Order #${position} cancelled.`);
   }
 
+  // Update the queue countdown to trigger the new modal
   _startQueueCountdown(orderSummary) {
     if (this._queueTimerInterval) clearInterval(this._queueTimerInterval);
     let remaining = orderSummary.waitTime * 60; 
@@ -364,7 +386,12 @@ class CafeController {
         this.activeQueueWait = null;
         this.ui.hideQueueBanner();
         this.updateCartView();
-        this.ui.showToast("🎉 Your order is ready!");
+        
+        // NEW: Dynamic notification string and modal trigger
+        const msg = orderSummary.type === 'pickup' 
+          ? "Your order is ready for pick up at the counter!" 
+          : `Your order is ready and will be served at Table ${orderSummary.table} shortly!`;
+        this.ui.showOrderReadyModal(msg);
         return;
       }
       const mins = Math.floor(remaining / 60);
@@ -445,3 +472,5 @@ window.setFilter = (tag, btn) => {
     card.style.display = tags.includes(tag) ? '' : 'none';
   });
 };
+
+window.setPickupTime = (time) => app.setPickupTime(time);

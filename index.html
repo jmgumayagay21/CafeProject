@@ -22,12 +22,16 @@
     <div><strong>Location</strong>508 Blumentritt Rd Manila</div>
     <div><strong>Contact</strong>(02) 8123-4567</div>
   </div>
+  <!-- Update 5/29 to add View Order Button -->
   <div class="hero-cta">
     <button class="btn-primary" onclick="document.getElementById('menu-start').scrollIntoView({behavior:'smooth'})">
       ☕ View Menu
     </button>
     <button class="btn-ghost" onclick="app.ui.toggleSeatingModal(true)">
       🪑 <span id="seat-count-btn">Seat Available</span>
+    </button>
+    <button class="btn-ghost" onclick="app.ui.showQueueList()">
+      📋 View Queue
     </button>
   </div>
 </section>
@@ -149,9 +153,19 @@
   </div>
   <p style="font-size:12px;color:var(--text-dim)">Prices inclusive of VAT · Menu changes seasonally</p>
 </footer>
- 
-<div class="overlay" id="overlay" onclick="closeCart(); app.ui.toggleSeatingModal(false); app.ui.hideOrderConfirmation(); app.ui.togglePaymentModal(false);"></div>
- 
+
+<!-- Update 5/29 to add Order Ready Modal -->
+<div class="overlay" id="overlay" onclick="closeCart(); app.ui.toggleSeatingModal(false); app.ui.hideOrderConfirmation(); app.ui.hideOrderReadyModal(); app.ui.togglePaymentModal(false);"></div>
+
+<div class="order-confirm-modal" id="order-ready-modal" style="z-index: 930;">
+  <div class="ocm-inner">
+    <div class="ocm-icon" style="animation: pop 0.4s ease infinite alternate;">🍽️</div>
+    <h2 class="ocm-title">Order Ready!</h2>
+    <p class="ocm-sub" id="order-ready-msg">Your order is ready to be served.</p>
+    <button class="checkout-btn" style="margin-top:16px" onclick="app.ui.hideOrderReadyModal()">Awesome, thanks!</button>
+  </div>
+</div>
+
 <div class="cart-drawer" id="cart-drawer">
   <div class="drawer-head">
     <div>

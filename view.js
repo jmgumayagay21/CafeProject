@@ -85,7 +85,7 @@ class UIManager {
     `;
   }
 
-  updateCart(cart, queuePos, queueLen, selectedTableId, availableCount, orderType, activeWaitTime) {
+  updateCart(cart, queuePos, queueLen, selectedTableId, availableCount, orderType, activeWaitTime, pickupTime) {
     const stats = cart.getTotals();
     const items = cart.getItems();
     const ids   = Object.keys(items);
@@ -147,6 +147,7 @@ class UIManager {
           : `🪑 Dine In`;
         const pickupLabel = isPickup ? `✓ Store Pickup Selected` : `🛍️ Store Pickup`;
 
+     // NEW: Injected the Time Input field if the user selects Pickup
         seatUI.innerHTML = `
           <div class="order-type-toggle">
             <button class="order-type-btn ${isDineIn ? 'order-type-btn--active' : ''}"
@@ -159,6 +160,13 @@ class UIManager {
             </button>
           </div>
           ${isDineIn && !selectedTableId ? `<p class="seat-hint">👆 Select a table from the floor plan</p>` : ''}
+          
+          ${isPickup ? `
+            <div style="margin-top: 12px; margin-bottom: 8px; display: flex; align-items: center; justify-content: space-between; background: rgba(255,255,255,0.03); padding: 10px 14px; border-radius: 12px; border: 0.5px solid var(--border);">
+              <label style="font-size: 13px; color: var(--text-dim); font-weight: 500;">Pick Up Time</label>
+              <input type="time" class="form-input" onchange="window.setPickupTime(this.value)" value="${pickupTime || ''}" style="background: var(--surface2); padding: 6px 10px; width: auto; font-size: 13px; border-radius: 8px;">
+            </div>
+          ` : ''}
         `;
       }
     }
@@ -452,5 +460,21 @@ const placeOrderBtn = document.getElementById('real-place-order-btn');
   if (window.app) window.app.setupPaymentValidationListeners();
 
 }
+
+showOrderReadyModal(msg) {
+    const modal = document.getElementById('order-ready-modal');
+    const msgEl = document.getElementById('order-ready-msg');
+    if (!modal || !msgEl) return;
+    
+    msgEl.textContent = msg;
+    modal.classList.add('open');
+    document.getElementById('overlay').classList.add('open');
+  }
+
+  hideOrderReadyModal() {
+    const modal = document.getElementById('order-ready-modal');
+    if (modal) modal.classList.remove('open');
+    document.getElementById('overlay').classList.remove('open');
+  }
 }
 
