@@ -313,21 +313,24 @@ const placeOrderBtn = document.getElementById('real-place-order-btn');
       banner = document.createElement('div');
       banner.id = 'queue-banner';
       banner.className = 'queue-banner';
-      document.body.appendChild(banner);
+      
+      // Inject into the Queue Modal if it's open, otherwise append to body
+      const modalContainer = document.getElementById('queue-list-modal');
+      if (modalContainer) {
+        modalContainer.querySelector('.ql-inner').insertBefore(banner, modalContainer.querySelector('.ql-body'));
+      } else {
+        document.body.appendChild(banner);
+      }
     }
+    
     const pad = n => String(n).padStart(2, '0');
-    const loc = type === 'pickup' ? 'Pickup at counter' : `Table ${table}`;
+    
+    // UPDATED: Removed the # badge and changed the label to "Your Order" only
     banner.innerHTML = `
       <div class="qb-inner">
-        <span class="qb-badge">#${position}</span>
         <div class="qb-info">
-          <span class="qb-label">Your order · ${loc}</span>
+          <span class="qb-label">Your Order</span>
           <span class="qb-timer">${pad(mins)}<em>:</em>${pad(secs)}<span class="qb-unit"> remaining</span></span>
-        </div>
-        <div class="qb-actions">
-          <button class="qb-view" onclick="app.ui.showQueueList()">View Queue</button>
-          <button class="qb-cancel" onclick="app.cancelOrder()">Cancel Order</button>
-          <button class="qb-close" onclick="app.ui.hideQueueBanner()">✕</button>
         </div>
       </div>`;
     banner.classList.add('visible');
@@ -339,8 +342,7 @@ const placeOrderBtn = document.getElementById('real-place-order-btn');
   }
 
   // Small modal to show current orders in the queue
-  showQueueList() {
-    // remove existing if present
+ showQueueList() {
     let modal = document.getElementById('queue-list-modal');
     if (modal) return;
 
@@ -380,6 +382,12 @@ const placeOrderBtn = document.getElementById('real-place-order-btn');
       </div>`;
 
     document.body.appendChild(modal);
+
+    // NEW: Automatically move the active banner into this modal when opened
+    const activeBanner = document.getElementById('queue-banner');
+    if (activeBanner) {
+      modal.querySelector('.ql-inner').insertBefore(activeBanner, modal.querySelector('.ql-body'));
+    }
 
     modal.querySelector('.ql-close').addEventListener('click', () => this.hideQueueList());
   }

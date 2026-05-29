@@ -129,7 +129,50 @@ body{font-family:'Outfit',sans-serif;background:var(--bg);color:var(--text);min-
   flex:1;justify-content:center;padding:0 20px;
 }
 .nav-cats::-webkit-scrollbar{display:none}
- 
+
+/* ── COMBINED ORDER & QUEUE BUTTON ── */
+.cart-btn-group {
+  display: flex;
+  align-items: center;
+  background: var(--gold-dim);
+  border: 0.5px solid rgba(212,168,83,0.3);
+  border-radius: 30px;
+  flex-shrink: 0;
+  transition: all 0.2s;
+}
+
+.cart-btn-group:hover {
+  background: rgba(212,168,83,0.25);
+}
+
+/* Remove default background/border from the inner buttons since the group handles it */
+.cart-btn-group .cart-btn {
+  background: transparent;
+  border: none;
+  margin: 0;
+  border-radius: 0;
+}
+
+.cart-btn-group .cart-btn:hover {
+  background: transparent; /* Removes double hover effect */
+}
+
+/* Adjust padding for a seamless pill shape */
+.cart-btn-left {
+  padding: 10px 14px 10px 18px;
+}
+
+.cart-btn-right {
+  padding: 10px 18px 10px 14px;
+}
+
+/* The vertical separator line between Order and Queue */
+.cart-btn-divider {
+  width: 1px;
+  height: 20px;
+  background: rgba(212,168,83,0.3);
+}
+
 .cat-btn{
   flex-shrink:0;padding:20px 20px;
   font-family:'Outfit',sans-serif;font-size:12px;font-weight:500;
@@ -820,33 +863,30 @@ body{font-family:'Outfit',sans-serif;background:var(--bg);color:var(--text);min-
   font-style: italic;
 }
 
+
 /* ── QUEUE BANNER (live countdown) ── */
 .queue-banner {
-  position: fixed;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  z-index: 800;
-  transform: translateY(100%);
-  transition: transform 0.4s cubic-bezier(0.4,0,0.2,1);
+  display: none; /* Hide it completely when just sitting in the body */
+  margin-bottom: 20px; /* Space between banner and the queue list */
 }
-.queue-banner.visible {
-  transform: translateY(0);
+
+/* ONLY show the banner if it is safely nested inside the Queue Modal */
+.queue-list-modal .queue-banner.visible {
+  display: block;
+  transform: none; 
 }
+
 .qb-inner {
-  max-width: 600px;
-  margin: 0 auto 0;
-  background: var(--surface2);
-  border-top: 0.5px solid var(--border2);
-  border-left: 0.5px solid var(--border);
-  border-right: 0.5px solid var(--border);
-  border-radius: 16px 16px 0 0;
-  padding: 16px 24px;
+  background: var(--surface3); /* Blends perfectly into the modal */
+  border: 0.5px solid var(--border);
+  border-radius: 12px; /* Rounded on all sides now instead of just the top */
+  padding: 16px 20px;
   display: flex;
   align-items: center;
   gap: 16px;
-  box-shadow: 0 -8px 32px rgba(0,0,0,0.4);
+  box-shadow: none; /* Removed the heavy floating drop shadow */
 }
+
 .qb-badge {
   flex-shrink: 0;
   background: var(--gold);
@@ -1050,4 +1090,127 @@ body{font-family:'Outfit',sans-serif;background:var(--bg);color:var(--text);min-
 .form-input::placeholder {
   color: var(--text-dim);
   opacity: 0.4;
+}
+
+/* ══════════════════════════════════════════
+   QUEUE LIST MODAL
+   ══════════════════════════════════════════ */
+.queue-list-modal {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.7);
+  z-index: 950;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  animation: fadeUp 0.3s ease;
+}
+
+.ql-inner {
+  background: var(--surface);
+  border: 0.5px solid var(--border);
+  border-radius: 16px;
+  width: 100%;
+  max-width: 500px;
+  max-height: 80vh;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 24px 80px rgba(0,0,0,0.6);
+  overflow: hidden;
+}
+
+.ql-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px 24px;
+  border-bottom: 0.5px solid var(--border);
+  background: var(--surface2);
+}
+
+.ql-head h3 {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--cream);
+  margin: 0;
+}
+
+/* This targets the floating active widget we moved inside the modal */
+.ql-inner .queue-banner {
+  margin: 20px 24px 0;
+  display: block !important; /* Forces the active banner to show up */
+}
+
+.ql-body {
+  padding: 20px 24px;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border2) transparent;
+}
+
+.ql-empty {
+  color: var(--text-dim);
+  text-align: center;
+  padding: 40px 0;
+  font-size: 14px;
+}
+
+.ql-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.ql-item {
+  background: var(--surface2);
+  border: 0.5px solid var(--border2);
+  border-radius: 12px;
+  padding: 16px;
+}
+
+.ql-item.first {
+  border-color: rgba(212,168,83,0.5);
+  background: var(--gold-dim);
+}
+
+.ql-pos {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--cream);
+}
+
+.ql-item.first .ql-pos {
+  color: var(--gold);
+}
+
+.ql-meta {
+  font-size: 11px;
+  color: var(--text-dim);
+  margin-top: 4px;
+}
+
+.ql-items {
+  font-size: 13px;
+  color: var(--text-muted);
+  margin-top: 12px;
+  line-height: 1.5;
+}
+
+.ql-item-cancel {
+  background: transparent;
+  border: 0.5px solid rgba(208,96,96,0.3);
+  color: #d06060;
+  padding: 6px 12px;
+  border-radius: 20px;
+  font-family: 'Outfit', sans-serif;
+  font-size: 11px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.ql-item-cancel:hover {
+  background: rgba(208,96,96,0.1);
 }

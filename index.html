@@ -22,16 +22,13 @@
     <div><strong>Location</strong>508 Blumentritt Rd Manila</div>
     <div><strong>Contact</strong>(02) 8123-4567</div>
   </div>
-  <!-- Update 5/29 to add View Order Button -->
+  <!-- Update 5/29 Removed the View Order Button -->
   <div class="hero-cta">
     <button class="btn-primary" onclick="document.getElementById('menu-start').scrollIntoView({behavior:'smooth'})">
       ☕ View Menu
     </button>
     <button class="btn-ghost" onclick="app.ui.toggleSeatingModal(true)">
       🪑 <span id="seat-count-btn">Seat Available</span>
-    </button>
-    <button class="btn-ghost" onclick="app.ui.showQueueList()">
-      📋 View Queue
     </button>
   </div>
 </section>
@@ -44,11 +41,19 @@
     <button class="cat-btn" onclick="setCategory('sweets',this)">Sweets</button>
     <button class="cat-btn" onclick="setCategory('drinks',this)">Drinks</button>
   </div>
-  <button class="cart-btn" onclick="openCart()">
+  <div class="cart-btn-group">
+  <button class="cart-btn cart-btn-left" onclick="openCart()">
     🛒 Order
     <span class="cart-badge" id="cart-badge">0</span>
+  </button>
+  
+  <div class="cart-btn-divider"></div>
+  
+  <button class="cart-btn cart-btn-right" onclick="app.ui.showQueueList()">
+    📋 Queue
     <span class="queue-info" id="queue-info"></span>
   </button>
+</div>
 </nav>
  
 <main class="menu-body">
