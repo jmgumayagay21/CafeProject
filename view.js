@@ -392,22 +392,22 @@ class UIManager {
           const readyTime = o.readyAt ? o.readyAt.getTime() : (Date.now() + (o.prepTime || 15) * 60000);
 
           return `<div class="ql-item">
-                    <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">
-                      <div>
-                        <div class="ql-pos" style="color: var(--gold);">#${i+1} · Order</div>
-                        
-                        <div class="ql-meta" style="margin-top:8px;">
-                          <span class="live-countdown" data-ready="${readyTime}" style="font-family:'Cormorant Garamond', serif; font-size:24px; font-weight:700; color:var(--gold-light);"></span>
-                          <br><span style="opacity:0.5; font-size:10px;">Ordered at ${ts}</span>
-                        </div>
-                        
+                  <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">
+                    <div>
+                      <div class="ql-pos" style="color: var(--gold);">#${i+1} · Order</div>
+                      
+                      <div class="ql-meta" style="margin-top:8px;">
+                        <span class="live-countdown" data-ready="${readyTime}" data-pos="${i+1}" style="font-family:'Cormorant Garamond', serif; font-size:24px; font-weight:700; color:var(--gold-light);"></span>
+                        <br><span style="opacity:0.5; font-size:10px;">Ordered at ${ts}</span>
                       </div>
-                      <div>
-                        <button class="ql-item-cancel" onclick="app.cancelQueueAt(${i+1})">Cancel</button>
-                      </div>
+                      
                     </div>
-                    <div class="ql-items" style="margin-top:12px; border-top:0.5px solid var(--border); padding-top:12px;">${items}</div>
-                  </div>`;
+                    <div>
+                      <button id="q-btn-${i+1}" class="ql-item-cancel" onclick="app.cancelQueueAt(${i+1})">Cancel</button>
+                    </div>
+                  </div>
+                  <div class="ql-items" style="margin-top:12px; border-top:0.5px solid var(--border); padding-top:12px;">${items}</div>
+                </div>`;
         }).join('')}</div>`;
 
     modal.innerHTML = `
@@ -442,17 +442,25 @@ class UIManager {
   }
 
   tickQueueTimers() {
-    // Find all active timers in the DOM
     const timerEls = document.querySelectorAll('.live-countdown');
     if (timerEls.length === 0) return;
 
     timerEls.forEach(el => {
       const readyAt = parseInt(el.dataset.ready, 10);
+      const pos = el.dataset.pos; // Grab the position we added above
       const remaining = readyAt - Date.now();
+      const btn = document.getElementById(`q-btn-${pos}`); // Find the matching button
 
       if (remaining <= 0) {
         el.innerHTML = "✓ Ready to Pick Up/Serve";
         el.style.color = "var(--green-light)";
+        
+        // Transform the Cancel button into a Received button
+        if (btn && btn.textContent !== 'Received') {
+          btn.textContent = 'Received';
+          btn.className = 'ql-item-received';
+          btn.onclick = () => window.app.completeQueueAt(pos);
+        }
       } else {
         const mins = Math.floor(remaining / 60000);
         const secs = Math.floor((remaining % 60000) / 1000);
@@ -520,8 +528,8 @@ class UIManager {
     document.getElementById('payment-step-3').style.display = 'flex';
     document.getElementById('payment-subtitle').textContent = "Enter your card details.";
 
-    // Update total value display target within card submit context 
-    const stats = this.cart ? this.cart.getTotals() : { total: 0 };
+    // FIX: Look at window.app.cart instead of this.cart so the UI can find the total
+    const stats = window.app.cart ? window.app.cart.getTotals() : { total: 0 };
     const cardTotalSpan = document.getElementById('card-pay-total');
     if (cardTotalSpan) {
       cardTotalSpan.textContent = stats.total.toLocaleString();

@@ -20,7 +20,6 @@ class CafeController {
       this.updateCartView();
     });
 
-    // FIX: Load initial views immediately so the app doesn't crash or show a blank menu
     this.ui.renderMenu(this.catalog);
     this.updateCartView();
   }
@@ -30,28 +29,27 @@ class CafeController {
       this.cart,
       this.activeQueuePosition,
       this.queue.getLength(),
-      this.selectedTableIds, // Pass the array down
+      this.selectedTableIds, 
       this.seating.getAvailableCount(),
       this.orderType,
       this.activeQueueWait,
       this.pickupTime 
     );
-    this.ui.renderSeating(this.seating, this.selectedTableIds); // Pass array
+    this.ui.renderSeating(this.seating, this.selectedTableIds); 
   }
 
-  // NEW: Method to handle pickup time selection
   setPickupTime(time) {
     this.pickupTime = time;
   }
 
   // ─── ORDER TYPE ───
-
   setOrderType(type) {
-    this.orderType = type; // 'dine-in' | 'pickup'
+    this.orderType = type; 
     if (type === 'pickup') {
-      this.selectedTableId = 'takeout';
+      // FIX: Cleanly sets the array so Proceed to Payment validates properly
+      this.selectedTableIds = ['takeout']; 
     } else {
-      this.selectedTableId = null;
+      this.selectedTableIds = []; 
       this.ui.toggleCart(false);
       this.ui.toggleSeatingModal(true);
     }
@@ -59,21 +57,15 @@ class CafeController {
   }
 
   // ─── CART FUNCTIONS ───
-
- // Replace your current changePreQty with this:
   changePreQty(id, delta) {
-    // Find the item to check its stock
     const item = this.catalog.findItemById(id);
     const maxStock = item ? item.stocks : 99; 
     
-    // Default to 0 if untouched
     if (this.ui.preQty[id] === undefined) this.ui.preQty[id] = 0;
     
-    // Calculate new quantity, capping it between 0 and the max available stock
     let newQty = this.ui.preQty[id] + delta;
     this.ui.preQty[id] = Math.max(0, Math.min(maxStock, newQty)); 
     
-    // Update the visual number
     const el = document.getElementById('qn-' + id);
     if (el) el.textContent = this.ui.preQty[id];
   }
@@ -82,40 +74,9 @@ class CafeController {
     this.cart.changeQty(id, delta);
   }
 
-  // Update addToCart to handle the new 0 value properly:
   addToCart(id, name, price, qtyOverride = null) {
     const item = this.catalog.findItemById(id);
     
-    // Look for the override first, fallback to the UI tracker
-    let qtyToAdd = qtyOverride !== null ? qtyOverride : this.ui.preQty[id];
-    if (qtyToAdd === 0) return; 
-    if (qtyToAdd === undefined) qtyToAdd = 1;
-
-    // 2. Check if adding this batch exceeds total stock limits
-    const currentCartQty = this.cart.items[id] ? this.cart.items[id].qty : 0;
-    if (item && (currentCartQty + qtyToAdd) > item.stocks) {
-      const left = item.stocks - currentCartQty;
-      this.ui.showToast(`⚠️ Cannot add more! Only ${left} left available.`);
-      return;
-    }
-
-    // 3. Add to cart
-    this.cart.addItem(id, name, price, qtyToAdd);
-    
-   // Ensure we clean up the base visual ID, not the long variant ID
-    const baseId = id.split('-')[0]; 
-    this.ui.preQty[baseId] = 0;
-    if (document.getElementById('qn-' + baseId)) {
-      document.getElementById('qn-' + baseId).textContent = 0;
-    }
-    
-    this.ui.showToast(`✓ Added ${qtyToAdd}x ${name} to order`);
-  }
-
-  addToCart(id, name, price, qtyOverride = null) {
-    const item = this.catalog.findItemById(id);
-    
-    // Look for the override first, fallback to the UI tracker
     let qtyToAdd = qtyOverride !== null ? qtyOverride : this.ui.preQty[id];
     if (qtyToAdd === 0) return; 
     if (qtyToAdd === undefined) qtyToAdd = 1;
@@ -129,7 +90,6 @@ class CafeController {
 
     this.cart.addItem(id, name, price, qtyToAdd);
     
-    // Ensure we clean up the base visual ID, not the long variant ID
     const baseId = id.split('-')[0]; 
     this.ui.preQty[baseId] = 0;
     if (document.getElementById('qn-' + baseId)) {
@@ -160,40 +120,17 @@ class CafeController {
     const formattedName = `${name} (${details.join(', ')})`;
     const uniqueId = `${id}-${details.join('-').replace(/\s+/g, '')}`;
     
-    // NEW: Grab the user's selected quantity on the base ID before sending to the cart
     let qtyToAdd = this.ui.preQty[id];
     if (qtyToAdd === undefined || qtyToAdd === 0) qtyToAdd = 1;
 
-    // Pass the exact quantity manually
     this.addToCart(uniqueId, formattedName, finalPrice, qtyToAdd);
-
     
-    // 1. Process cart addition via unique item ID metadata
-    this.addToCart(uniqueId, formattedName, finalPrice);
-    
-    // 2. Explicitly target and reset the underlying base view element to 0
     if (this.ui.preQty[id]) this.ui.preQty[id] = 0; 
     const el = document.getElementById('qn-' + id);
     if (el) el.textContent = 0;
   }
 
-  // ─── ORDER TYPE ───
-
-  setOrderType(type) {
-    this.orderType = type; // 'dine-in' | 'pickup'
-    if (type === 'pickup') {
-      this.selectedTableId = 'takeout';
-    } else {
-      this.selectedTableId = null;
-      this.ui.toggleCart(false);
-      this.ui.toggleSeatingModal(true);
-    }
-    this.updateCartView();
-  }
-
   // ─── SEATING ───
-
-  // ALLOW MULTIPLE SELECTIONS
   selectTable(id) {
     const table = this.seating.getTables().find(t => t.id === id);
     if (table.isOccupied) {
@@ -201,7 +138,6 @@ class CafeController {
       return;
     }
     
-    // Toggle the ID inside the array
     if (this.selectedTableIds.includes(id)) {
       this.selectedTableIds = this.selectedTableIds.filter(tId => tId !== id);
     } else {
@@ -210,7 +146,6 @@ class CafeController {
 
     this.orderType = 'dine-in';
     this.updateCartView();
-    // Removed toggleSeatingModal(false) so the user can continue clicking multiple tables
   }
 
   setTakeout() {
@@ -234,14 +169,11 @@ class CafeController {
     const stats = this.cart.getTotals();
     const waitTime = this.queue.getEstimatedWait(this.queue.getLength() + 1, stats.estimatedTime);
     
-    // Create the order
     const newOrder = new Order({...this.cart.getItems()}, waitTime, this.orderType, [...this.selectedTableIds]);
     
-    // 1. Calculate EXACT ready time for this specific order
     const waitMs = waitTime * 60000;
     newOrder.readyAt = new Date(Date.now() + waitMs);
     
-    // 2. Bind a specific pop-up timeout directly to this order
     newOrder.timeoutId = setTimeout(() => {
       const msg = newOrder.type === 'pickup' 
         ? "Your order is ready for pick up at the counter!" 
@@ -249,10 +181,8 @@ class CafeController {
       this.ui.showOrderReadyModal(msg);
     }, waitMs);
 
-    // Add to queue
     const queuePosition = this.queue.addOrder(newOrder); 
 
-    // Toggle all selected tables to occupied
     if (!this.selectedTableIds.includes('takeout')) {
       this.selectedTableIds.forEach(id => this.seating.toggleTableStatus(id));
     }
@@ -267,14 +197,12 @@ class CafeController {
       pickupTime: this.pickupTime 
     };
 
-    // Save state for background cancellation if needed
     this.lastOrderDocId = null;
     this.lastOrderTableIds = [...this.selectedTableIds]; 
     this.lastOrderType = this.orderType;
 
     this.saveOrderToFirebase(orderSummary, stats, newOrder.items);
 
-    // Reset UI state
     this.cart.clear();
     this.selectedTableIds = [];
     this.orderType = null;
@@ -285,14 +213,12 @@ class CafeController {
     
     this.ui.showOrderConfirmation(orderSummary);
     
-    // Force Queue list to refresh in the background if it's currently open
     if (document.getElementById('queue-list-modal')) {
       this.ui.showQueueList();
     }
   }
 
-saveOrderToFirebase(orderSummary, stats, items) {
-    // Check if Firebase is loaded (from your index.html script)
+  saveOrderToFirebase(orderSummary, stats, items) {
     if (!window.firebaseDB || !window.dbMethods) {
       console.warn("Firebase not initialized. Order placed locally only.");
       return;
@@ -301,14 +227,12 @@ saveOrderToFirebase(orderSummary, stats, items) {
     const db = window.firebaseDB;
     const { collection, addDoc, serverTimestamp } = window.dbMethods;
 
-    // Save to the "orders" collection
     addDoc(collection(db, "orders"), {
       ...orderSummary,
       items: items,
       status: 'pending',
       createdAt: serverTimestamp()
     }).then(docRef => {
-      // Save the document ID so cancelOrder() can find it later
       this.lastOrderDocId = docRef.id;
       console.log("Order saved to cloud with ID: ", docRef.id);
     }).catch(error => {
@@ -317,15 +241,9 @@ saveOrderToFirebase(orderSummary, stats, items) {
     });
   }
 
-
-
-
-
   cancelOrder() {
-    // We do not need the active timer logic here anymore
     const docIdToCancel = this.lastOrderDocId; 
     
-    // Free tables from the last placed order
     if (this.lastOrderTableIds && this.lastOrderType !== 'pickup') {
       this.lastOrderTableIds.forEach(id => {
         const table = this.seating.getTables().find(t => t.id === id);
@@ -366,19 +284,15 @@ saveOrderToFirebase(orderSummary, stats, items) {
   cancelQueueAt(position) {
     if (!position || !this.queue || !Array.isArray(this.queue.orders)) return;
     
-    // Convert 1-based position to 0-based array index
     const idx = position - 1;
     if (idx < 0 || idx >= this.queue.orders.length) return;
 
-    // 1. Get the specific order being cancelled
     const orderToCancel = this.queue.orders[idx];
     
-    // 2. Stop this specific order's "Ready to Serve" pop-up from firing
     if (orderToCancel && orderToCancel.timeoutId) {
       clearTimeout(orderToCancel.timeoutId);
     }
 
-    // 3. Free up this order's specific tables
     if (orderToCancel && orderToCancel.tableIds && orderToCancel.type !== 'pickup') {
       orderToCancel.tableIds.forEach(id => {
         const table = this.seating.getTables().find(t => t.id === id);
@@ -386,16 +300,41 @@ saveOrderToFirebase(orderSummary, stats, items) {
       });
     }
 
-    // 4. Remove it from the queue array
     this.queue.orders.splice(idx, 1);
-
-    // 5. Refresh the UI entirely
     this.updateCartView();
     this.ui.showQueueList(); 
     this.ui.showToast(`Order #${position} cancelled.`);
   }
 
-  // Add this method inside CafeController in controller.js
+  completeQueueAt(position) {
+    if (!position || !this.queue || !Array.isArray(this.queue.orders)) return;
+    
+    const idx = position - 1;
+    if (idx < 0 || idx >= this.queue.orders.length) return;
+
+    const orderToComplete = this.queue.orders[idx];
+    
+    if (orderToComplete && orderToComplete.timeoutId) {
+      clearTimeout(orderToComplete.timeoutId);
+    }
+
+    // Free up the tables since the customer has received their food
+    if (orderToComplete && orderToComplete.tableIds && orderToComplete.type !== 'pickup') {
+      orderToComplete.tableIds.forEach(id => {
+        const table = this.seating.getTables().find(t => t.id === id);
+        if (table && table.isOccupied) table.free(); 
+      });
+    }
+
+    // Remove from the active queue
+    this.queue.orders.splice(idx, 1);
+    
+    // Refresh the UI
+    this.updateCartView();
+    this.ui.showQueueList(); 
+    this.ui.showToast(`🎉 Order #${position} completed! Table cleared.`);
+  }
+
   setupPaymentValidationListeners() {
     const cardName = document.getElementById('card-name');
     const cardNumber = document.getElementById('card-number');
@@ -405,7 +344,6 @@ saveOrderToFirebase(orderSummary, stats, items) {
 
     if (!cardConfirmBtn) return;
 
-    // If inputs aren't rendered or active yet, just skip gracefully
     if (!cardName || !cardNumber || !cardExpiry || !cardCVV) {
       cardConfirmBtn.disabled = true;
       return;
@@ -420,7 +358,6 @@ saveOrderToFirebase(orderSummary, stats, items) {
       cardConfirmBtn.disabled = !isValid;
     };
 
-    // Remove any previous duplicate listeners before applying new ones
     const inputElements = [cardName, cardNumber, cardExpiry, cardCVV];
     inputElements.forEach(input => {
       input.removeEventListener('input', validateForm);
@@ -429,12 +366,11 @@ saveOrderToFirebase(orderSummary, stats, items) {
 
     validateForm();
   }
-} // <--- THIS CLOSING BRACKET ENDS THE CAFECONTROLLER CLASS
+}
 
 // Instantiate App
 const app = new CafeController();
 window.app = app;
-
 
 window.setFilter = (tag, btn) => {
   document.querySelectorAll('.filter-chip').forEach(b => b.classList.remove('active'));
@@ -447,24 +383,19 @@ window.setFilter = (tag, btn) => {
 };
 
 window.setCategory = (id, btn) => {
-  // 1. Remove the 'active' styling from all navigation buttons
   document.querySelectorAll('.cat-btn').forEach(b => b.classList.remove('active'));
-  
-  // 2. Add the 'active' styling to the button you just clicked
   btn.classList.add('active');
-  
-  // 3. Find the corresponding menu section and scroll to it smoothly
   const section = document.getElementById(id);
   if (section) {
-    // The CSS 'scroll-margin-top: 70px' you already have will ensure the sticky nav doesn't cover the title
     section.scrollIntoView({ behavior: 'smooth' });
   }
 };
 
-
-// Add these at the bottom of controller.js
 window.openCart = () => app.ui.toggleCart(true);
 window.closeCart = () => app.ui.toggleCart(false);
 window.clearCart = () => app.cart.clear();
 window.proceedToPayment = () => app.proceedToPayment();
 window.placeOrder = (method) => app.placeOrder(method);
+
+// FIX: This binding was missing! This connects the time dropdown to your logic.
+window.setPickupTime = (time) => app.setPickupTime(time);

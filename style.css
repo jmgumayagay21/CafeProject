@@ -1177,3 +1177,20 @@ body{font-family:'Outfit',sans-serif;background:var(--bg);color:var(--text);min-
 .ql-item-cancel:hover {
   background: rgba(208,96,96,0.1);
 }
+
+.ql-item-received {
+  background: rgba(90,122,74,0.1);
+  border: 0.5px solid rgba(126,175,102,0.4);
+  color: var(--green-light);
+  padding: 6px 12px;
+  border-radius: 20px;
+  font-family: 'Outfit', sans-serif;
+  font-size: 11px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.ql-item-received:hover {
+  background: rgba(90,122,74,0.2);
+}
