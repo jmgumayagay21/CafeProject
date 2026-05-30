@@ -27,10 +27,12 @@ class DrinkItem extends MenuItem {
 
 // Encapsulates a finalized order
 class Order {
-  constructor(items, prepTime) {
+  constructor(items, prepTime, type = 'pickup', tableIds = []) {
     this.items = items;
     this.timestamp = new Date();
     this.prepTime = prepTime;
+    this.type = type;           // NEW: Track if it's pickup or dine-in
+    this.tableIds = tableIds;   // NEW: Track exactly which tables this order is holding
   }
 }
 

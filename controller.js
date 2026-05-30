@@ -212,10 +212,10 @@ class CafeController {
     if (this.selectedTableIds.length === 0) return;
 
     const stats = this.cart.getTotals();
-    const newOrder = new Order({...this.cart.getItems()}, stats.estimatedTime);
+    const newOrder = new Order({...this.cart.getItems()}, stats.estimatedTime, this.orderType, [...this.selectedTableIds]);
     this.activeQueuePosition = this.queue.addOrder(newOrder);
     const waitTime = this.queue.getEstimatedWait(this.activeQueuePosition, stats.estimatedTime);
-    this.activeQueueWait = waitTime;
+    this.activeQueuePosition = this.queue.addOrder(newOrder);
 
     // Toggle all selected tables to occupied
     if (!this.selectedTableIds.includes('takeout')) {
@@ -378,16 +378,28 @@ class CafeController {
     this.ui.showToast("Order cancelled.");
   }
 
-  // Cancel a specific order in the in-memory queue by its 1-based position
+ // Cancel a specific order in the in-memory queue by its 1-based position
   cancelQueueAt(position) {
     if (!position || !this.queue || !Array.isArray(this.queue.orders)) return;
     const idx = position - 1;
     if (idx < 0 || idx >= this.queue.orders.length) return;
 
-    // If cancelling the currently active order (the one with countdown), delegate to cancelOrder
+    // If cancelling the currently active order, delegate to cancelOrder
     if (this.activeQueuePosition === position) {
       this.cancelOrder();
+      this.ui.showQueueList(); // Force queue UI sync
       return;
+    }
+
+    // NEW: Get the order being cancelled and free its specific tables
+    const orderToCancel = this.queue.orders[idx];
+    if (orderToCancel && orderToCancel.tableIds && orderToCancel.type !== 'pickup') {
+      orderToCancel.tableIds.forEach(id => {
+        const table = this.seating.getTables().find(t => t.id === id);
+        if (table && table.isOccupied) {
+          table.free(); // Releases the seat back to the floor plan
+        }
+      });
     }
 
     // Remove the specified order from queue
@@ -398,15 +410,14 @@ class CafeController {
       this.activeQueuePosition = Math.max(1, this.activeQueuePosition - 1);
     }
 
-    // If required, adjust activeQueuePosition if it now falls outside queue bounds
     if (this.activeQueuePosition && this.activeQueuePosition > this.queue.orders.length) {
-      // when the active position was removed (earlier in the queue), reset to first
       this.activeQueuePosition = this.queue.orders.length > 0 ? 1 : null;
     }
 
-    // Close the queue list modal (if open) and refresh UI
-    try { this.ui.hideQueueList(); } catch (e) { /* ignore */ }
+    // Refresh UI entirely
     this.updateCartView();
+    this.ui.showQueueList(); // Dynamically re-renders the list instead of hiding it
+    
     console.log(`Cancelled queue position ${position}. Remaining orders: ${this.queue.orders.length}`);
     this.ui.showToast(`Order #${position} cancelled.`);
   }
