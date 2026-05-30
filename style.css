@@ -354,7 +354,8 @@ body{font-family:'Outfit',sans-serif;background:var(--bg);color:var(--text);min-
   color: var(--text-dim);
 }
 .drink-select {
-  background: rgba(255,255,255,0.05);
+  background-color: #1a1510 !important;
+  color: #F5EDD8 !important;
   border: 0.5px solid var(--border2);
   color: var(--text);
   padding: 6px 10px;
@@ -362,6 +363,7 @@ body{font-family:'Outfit',sans-serif;background:var(--bg);color:var(--text);min-
   outline: none;
   width: 130px;
   font-size: 11px;
+
 }
 .drink-add-row {
   margin-top: auto;

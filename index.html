@@ -363,49 +363,35 @@
 
   // LIVE SNAPSHOT STREAM LISTENER
  // LIVE SNAPSHOT STREAM LISTENER
-  onSnapshot(collection(db, "products"), (snapshot) => {
-    let cloudMenu = { breakfast: [], allday: [], mains: [], sweets: [], drinks: [] };
-    
-    snapshot.forEach((docSnap) => {
-      const data = docSnap.data();
-      const docId = docSnap.id;
-      
-      // FIXED 1: Clean category string formats from database to be lowercased and trimmed
-      let category = data.category ? String(data.category).toLowerCase().trim() : "";
-      
-      // FIXED 2: Forced routing. If the document ID starts with 'd', force it to the 'drinks' category layout
-      if (docId.startsWith('d')) {
-        category = "drinks";
-      }
+  // Inside the onSnapshot loop in index.html
+let verifiedName = data.name;
+let verifiedPrice = data.price ?? 0;
 
-      // ADD THIS BLOCK to prevent the special item from duplicating in the standard grid
-      if (docId === 'special-item' || data.name === 'Truffle Scrambled Eggs') {
-        return; // skips this item completely
-      }
+// Force override the Latte name
+if (docId === 'd4' || verifiedName === 'Iced Latte') {
+  verifiedName = 'Latte';
+}
 
-      if (category && cloudMenu[category]) {
-        let verifiedName = data.name;
-        if (!verifiedName || verifiedName === "Unknown Item") {
-          verifiedName = fallbackRegistry[docId] || "Unknown Item";
-        }
+// Force override the Cheesecake price if it returns 0
+if (docId === 's1' || verifiedName === 'Burnt Basque Cheesecake') {
+  if (verifiedPrice === 0) {
+    verifiedPrice = 195;
+  }
+}
 
-        cloudMenu[category].push({
-          id: docId, 
-          name: verifiedName, 
-          price: data.price ?? 0,
-          desc: data.desc ?? "",
-          tags: data.tags || [],
-          stocks: data.stocks ?? 0,
-          icon: data.icon || "☕"
-        });
-      }
-    });
+if (!verifiedName || verifiedName === "Unknown Item") {
+  verifiedName = fallbackRegistry[docId] || "Unknown Item";
+}
 
-    if (window.app) {
-      window.app.catalog.updateFromCloud(cloudMenu);
-      window.app.ui.renderMenu(window.app.catalog);
-    }
-  });
+cloudMenu[category].push({
+  id: docId,
+  name: verifiedName,
+  price: verifiedPrice,
+  desc: data.desc ?? "",
+  tags: data.tags || [],
+  stocks: data.stocks ?? 0,
+  icon: data.icon || "☕"
+});
 </script>
 </body>
 </html>

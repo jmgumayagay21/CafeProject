@@ -446,6 +446,22 @@ window.setFilter = (tag, btn) => {
   });
 };
 
+window.setCategory = (id, btn) => {
+  // 1. Remove the 'active' styling from all navigation buttons
+  document.querySelectorAll('.cat-btn').forEach(b => b.classList.remove('active'));
+  
+  // 2. Add the 'active' styling to the button you just clicked
+  btn.classList.add('active');
+  
+  // 3. Find the corresponding menu section and scroll to it smoothly
+  const section = document.getElementById(id);
+  if (section) {
+    // The CSS 'scroll-margin-top: 70px' you already have will ensure the sticky nav doesn't cover the title
+    section.scrollIntoView({ behavior: 'smooth' });
+  }
+};
+
+
 // Add these at the bottom of controller.js
 window.openCart = () => app.ui.toggleCart(true);
 window.closeCart = () => app.ui.toggleCart(false);
