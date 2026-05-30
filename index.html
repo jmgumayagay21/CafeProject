@@ -42,7 +42,7 @@
     <button class="cat-btn" onclick="setCategory('drinks',this)">Drinks</button>
   </div>
   <div class="cart-btn-group">
-  <button class="cart-btn cart-btn-left" onclick="openCart()">
+  <button class="cart-btn cart-btn-left" onclick="app.ui.toggleCart(true)">
     🛒 Order
     <span class="cart-badge" id="cart-badge">0</span>
   </button>
@@ -160,7 +160,7 @@
 </footer>
 
 <!-- Update 5/29 to add Order Ready Modal -->
-<div class="overlay" id="overlay" onclick="closeCart(); app.ui.toggleSeatingModal(false); app.ui.hideOrderConfirmation(); app.ui.hideOrderReadyModal(); app.ui.togglePaymentModal(false);"></div>
+<div class="overlay" id="overlay" onclick="app.ui.toggleCart(false); app.ui.toggleSeatingModal(false); app.ui.hideOrderConfirmation(); app.ui.hideOrderReadyModal(); app.ui.togglePaymentModal(false);"></div>
 
 <div class="order-confirm-modal" id="order-ready-modal" style="z-index: 930;">
   <div class="ocm-inner">
@@ -177,7 +177,7 @@
       <h2>Your Order</h2>
       <p class="queue-position" id="queue-position"></p>
     </div>
-    <button class="close-btn" onclick="closeCart()">✕</button>
+    <button class="close-btn" onclick="app.ui.toggleCart(false)">✕</button>
   </div>
   <div class="cart-items" id="cart-items">
     <div class="empty-cart" id="empty-cart">
@@ -205,11 +205,11 @@
 
     <div id="seat-selection-ui" style="margin-bottom:12px;"></div>
 
-    <button class="checkout-btn" id="checkout-btn" onclick="proceedToPayment()">
+    <button class="checkout-btn" id="checkout-btn" onclick="app.proceedToPayment()">
       Proceed to Payment →
     </button>
     
-    <button class="clear-btn" onclick="clearCart()">Clear order</button>
+    <button class="clear-btn" onclick="app.cart.clear()">Clear order</button>
   </div>
 </div> <div class="toast" id="toast"></div>
 
@@ -265,7 +265,7 @@
   <div class="cart-items" id="payment-items" style="padding-top: 24px;">
     
     <div id="payment-step-1" style="display:flex; flex-direction:column; gap:12px;">
-      <button class="payment-btn" onclick="placeOrder('Cash')">
+      <button class="payment-btn" onclick="app.placeOrder('Cash')">
         <span class="payment-btn-icon">💵</span> Cash
       </button>
       <button class="payment-btn" onclick="app.ui.showCardForm()">
@@ -288,7 +288,7 @@
         Scan the QR code using your GCash app.<br>Tap confirm below once the transfer is complete.
       </p>
       
-      <button class="checkout-btn" onclick="placeOrder('GCash')">
+      <button class="checkout-btn" onclick="app.placeOrder('GCash')">
         I have paid via GCash →
       </button>
       
@@ -313,7 +313,7 @@
           <input type="password" class="form-input" placeholder="123" id="card-cvv" maxlength="4">
         </div>
       </div>
-      <button class="checkout-btn" id="card-confirm-btn" onclick="placeOrder('Card')" style="margin-top: 8px;">
+      <button class="checkout-btn" id="card-confirm-btn" onclick="app.placeOrder('Card')" style="margin-top: 8px;">
         Confirm & Pay ₱<span id="card-pay-total">0</span> →
       </button>
     </div>

@@ -10,6 +10,7 @@ class CafeController {
     this.activeQueueWait = null;
     this.selectedTableIds = []; 
     this.orderType = null; 
+    
     this._queueTimerInterval = null;
     this.lastOrderTableIds = []; 
     this.lastOrderType = null;
@@ -82,13 +83,13 @@ class CafeController {
   }
 
   // Update addToCart to handle the new 0 value properly:
-  addToCart(id, name, price) {
+  addToCart(id, name, price, qtyOverride = null) {
     const item = this.catalog.findItemById(id);
     
-    // 1. Determine exactly how many they want to add
-    let qtyToAdd = this.ui.preQty[id];
-    if (qtyToAdd === 0) return; // Do nothing if it's set to 0
-    if (qtyToAdd === undefined) qtyToAdd = 1; // Default to 1 if they just clicked "+ Add" directly
+    // Look for the override first, fallback to the UI tracker
+    let qtyToAdd = qtyOverride !== null ? qtyOverride : this.ui.preQty[id];
+    if (qtyToAdd === 0) return; 
+    if (qtyToAdd === undefined) qtyToAdd = 1;
 
     // 2. Check if adding this batch exceeds total stock limits
     const currentCartQty = this.cart.items[id] ? this.cart.items[id].qty : 0;
@@ -101,10 +102,38 @@ class CafeController {
     // 3. Add to cart
     this.cart.addItem(id, name, price, qtyToAdd);
     
-    // 4. Reset the quantity selector back to 0
-    this.ui.preQty[id] = 0;
-    if (document.getElementById('qn-' + id)) {
-      document.getElementById('qn-' + id).textContent = 0;
+   // Ensure we clean up the base visual ID, not the long variant ID
+    const baseId = id.split('-')[0]; 
+    this.ui.preQty[baseId] = 0;
+    if (document.getElementById('qn-' + baseId)) {
+      document.getElementById('qn-' + baseId).textContent = 0;
+    }
+    
+    this.ui.showToast(`✓ Added ${qtyToAdd}x ${name} to order`);
+  }
+
+  addToCart(id, name, price, qtyOverride = null) {
+    const item = this.catalog.findItemById(id);
+    
+    // Look for the override first, fallback to the UI tracker
+    let qtyToAdd = qtyOverride !== null ? qtyOverride : this.ui.preQty[id];
+    if (qtyToAdd === 0) return; 
+    if (qtyToAdd === undefined) qtyToAdd = 1;
+
+    const currentCartQty = this.cart.items[id] ? this.cart.items[id].qty : 0;
+    if (item && (currentCartQty + qtyToAdd) > item.stocks) {
+      const left = item.stocks - currentCartQty;
+      this.ui.showToast(`⚠️ Cannot add more! Only ${left} left available.`);
+      return;
+    }
+
+    this.cart.addItem(id, name, price, qtyToAdd);
+    
+    // Ensure we clean up the base visual ID, not the long variant ID
+    const baseId = id.split('-')[0]; 
+    this.ui.preQty[baseId] = 0;
+    if (document.getElementById('qn-' + baseId)) {
+      document.getElementById('qn-' + baseId).textContent = 0;
     }
     
     this.ui.showToast(`✓ Added ${qtyToAdd}x ${name} to order`);
@@ -119,35 +148,25 @@ class CafeController {
     let additionalPrice = 0;
     let details = [];
 
-    // Add Temperature
     details.push(temp);
-
-    // Add Size & update price
-    if (size !== 'Regular') {
-      details.push('Large');
-      additionalPrice += 20;
-    }
-
-    // Add Sugar
-    if (sugarLevel !== 'Regular') {
-      details.push(sugarLevel + ' Sugar');
-    }
-
-    // Add Add-ons & update price
+    if (size !== 'Regular') { details.push('Large'); additionalPrice += 20; }
+    if (sugarLevel !== 'Regular') { details.push(sugarLevel + ' Sugar'); }
     if (addon !== 'None') {
-      if (addon === 'Espresso Shot') {
-        details.push('+Shot');
-        additionalPrice += 30;
-      } else if (addon === 'Oat Milk') {
-        details.push('+Oat');
-        additionalPrice += 30;
-      }
+      if (addon === 'Espresso Shot') { details.push('+Shot'); additionalPrice += 30; } 
+      else if (addon === 'Oat Milk') { details.push('+Oat'); additionalPrice += 30; }
     }
 
     const finalPrice = price + additionalPrice;
     const formattedName = `${name} (${details.join(', ')})`;
-    // Create a unique cart ID so different variations don't merge into one
     const uniqueId = `${id}-${details.join('-').replace(/\s+/g, '')}`;
+    
+    // NEW: Grab the user's selected quantity on the base ID before sending to the cart
+    let qtyToAdd = this.ui.preQty[id];
+    if (qtyToAdd === undefined || qtyToAdd === 0) qtyToAdd = 1;
+
+    // Pass the exact quantity manually
+    this.addToCart(uniqueId, formattedName, finalPrice, qtyToAdd);
+
     
     // 1. Process cart addition via unique item ID metadata
     this.addToCart(uniqueId, formattedName, finalPrice);
@@ -209,13 +228,29 @@ class CafeController {
   }
 
   placeOrder(paymentMethod) {
+    if (Object.keys(this.cart.getItems()).length === 0) return; 
     if (this.selectedTableIds.length === 0) return;
 
     const stats = this.cart.getTotals();
-    const newOrder = new Order({...this.cart.getItems()}, stats.estimatedTime, this.orderType, [...this.selectedTableIds]);
-    this.activeQueuePosition = this.queue.addOrder(newOrder);
-    const waitTime = this.queue.getEstimatedWait(this.activeQueuePosition, stats.estimatedTime);
-    this.activeQueuePosition = this.queue.addOrder(newOrder);
+    const waitTime = this.queue.getEstimatedWait(this.queue.getLength() + 1, stats.estimatedTime);
+    
+    // Create the order
+    const newOrder = new Order({...this.cart.getItems()}, waitTime, this.orderType, [...this.selectedTableIds]);
+    
+    // 1. Calculate EXACT ready time for this specific order
+    const waitMs = waitTime * 60000;
+    newOrder.readyAt = new Date(Date.now() + waitMs);
+    
+    // 2. Bind a specific pop-up timeout directly to this order
+    newOrder.timeoutId = setTimeout(() => {
+      const msg = newOrder.type === 'pickup' 
+        ? "Your order is ready for pick up at the counter!" 
+        : `Your order is ready and will be served at Table ${newOrder.tableIds.join(', ')} shortly!`;
+      this.ui.showOrderReadyModal(msg);
+    }, waitMs);
+
+    // Add to queue
+    const queuePosition = this.queue.addOrder(newOrder); 
 
     // Toggle all selected tables to occupied
     if (!this.selectedTableIds.includes('takeout')) {
@@ -223,21 +258,23 @@ class CafeController {
     }
 
     const orderSummary = {
-      position: this.activeQueuePosition,
-      waitTime,
+      position: queuePosition,
+      waitTime: waitTime,
       type: this.orderType,
-      table: this.selectedTableIds.join(', '), // Format array for UI display
+      table: this.selectedTableIds.join(', '), 
       total: stats.total,
       paymentMethod: paymentMethod,
       pickupTime: this.pickupTime 
     };
 
+    // Save state for background cancellation if needed
     this.lastOrderDocId = null;
-    this.lastOrderTableIds = [...this.selectedTableIds]; // Store array for cancellation
+    this.lastOrderTableIds = [...this.selectedTableIds]; 
     this.lastOrderType = this.orderType;
 
     this.saveOrderToFirebase(orderSummary, stats, newOrder.items);
 
+    // Reset UI state
     this.cart.clear();
     this.selectedTableIds = [];
     this.orderType = null;
@@ -246,217 +283,116 @@ class CafeController {
     this.ui.togglePaymentModal(false);
     this.ui.toggleCart(false);
     
-    this._startQueueCountdown(orderSummary);
     this.ui.showOrderConfirmation(orderSummary);
+    
+    // Force Queue list to refresh in the background if it's currently open
+    if (document.getElementById('queue-list-modal')) {
+      this.ui.showQueueList();
+    }
   }
 
-  // CLOUD ATOMIC TRANSACTIONS: Reads dynamic states, blocks invalid buys, updates fields safely
-  async saveOrderToFirebase(summary, stats, cartItems) {
+saveOrderToFirebase(orderSummary, stats, items) {
+    // Check if Firebase is loaded (from your index.html script)
     if (!window.firebaseDB || !window.dbMethods) {
-      console.warn("Firebase not ready or active.");
+      console.warn("Firebase not initialized. Order placed locally only.");
       return;
     }
-    
 
     const db = window.firebaseDB;
-    const { collection, addDoc, doc, runTransaction, serverTimestamp } = window.dbMethods;
+    const { collection, addDoc, serverTimestamp } = window.dbMethods;
 
-    try {
-      await runTransaction(db, async (transaction) => {
-        const itemIds = Object.keys(cartItems);
-        let docsToUpdate = [];
-
-        for (let id of itemIds) {
-          // FIXED: Prevents slicing 'special-item' into 'special' while correctly parsing drink variants
-          const cleanId = id === 'special-item' ? id : id.split('-')[0];
-          
-          const productRef = doc(db, "products", cleanId);
-          const productSnap = await transaction.get(productRef);
-
-          if (!productSnap.exists()) {
-            throw `Product ID ${cleanId} does not exist in the store directory!`;
-          }
-
-          const currentStock = productSnap.data().stocks ?? 0;
-          const requestedQty = cartItems[id].qty;
-
-          if (currentStock < requestedQty) {
-            throw `Sorry, ${cartItems[id].name} is insufficient in stock!`;
-          }
-
-          docsToUpdate.push({ ref: productRef, newStock: currentStock - requestedQty });
-        }
-
-        // Apply calculated updates sequentially across active item array targets
-        for (let update of docsToUpdate) {
-          transaction.update(update.ref, { stocks: update.newStock });
-        }
-
-        // Write order receipt log entry to database
-        const orderRef = doc(collection(db, "orders"));
-        transaction.set(orderRef, {
-          queueNumber: summary.position,
-          orderType: summary.type,
-          tableId: summary.table,
-          subtotal: stats.subtotal,
-          tax: stats.tax,
-          totalPaid: summary.total,
-          paymentMethod: summary.paymentMethod, 
-          pickupTime: summary.pickupTime || null, // NEW DATA FIELD
-          estimatedWait: summary.waitTime,
-          items: cartItems,
-          status: 'pending',
-          createdAt: serverTimestamp()
-        });
-        this.lastOrderDocId = orderRef.id;
-      });
-
-      console.log("🎉 Secure stock deduction and order synchronization complete!");
-    } catch (error) {
-      console.error("Transaction failed: ", error);
-      this.ui.showToast("⚠️ " + error);
-    }
+    // Save to the "orders" collection
+    addDoc(collection(db, "orders"), {
+      ...orderSummary,
+      items: items,
+      status: 'pending',
+      createdAt: serverTimestamp()
+    }).then(docRef => {
+      // Save the document ID so cancelOrder() can find it later
+      this.lastOrderDocId = docRef.id;
+      console.log("Order saved to cloud with ID: ", docRef.id);
+    }).catch(error => {
+      console.error("Error saving order: ", error);
+      this.ui.showToast("Order placed locally, but failed to sync to cloud.");
+    });
   }
 
-  async cancelOrder() {
-    if (this.lastOrderDocId && window.firebaseDB && window.dbMethods) {
-      const db = window.firebaseDB;
-      const { doc, runTransaction, serverTimestamp } = window.dbMethods;
-      try {
-        await runTransaction(db, async (transaction) => {
-          const orderRef = doc(db, "orders", this.lastOrderDocId);
-          const orderSnap = await transaction.get(orderRef);
-          if (!orderSnap.exists()) return;
-          transaction.update(orderRef, {
-            status: 'cancelled',
-            cancelledAt: serverTimestamp()
-          });
-        });
-        console.log("Order cancelled in database.");
-      } catch (error) {
-        console.error("Cancel order failed: ", error);
-      }
-    }
 
-    // Stop and clear any active queue countdown so it doesn't re-show the banner
-    if (this._queueTimerInterval) {
-      clearInterval(this._queueTimerInterval);
-      this._queueTimerInterval = null;
-    }
 
-    // Remove the order from the queue by its recorded position (if present)
-    const posToRemove = this.activeQueuePosition;
-    if (posToRemove && this.queue && Array.isArray(this.queue.orders)) {
-      // positions are 1-based in the UI, convert to 0-based index
-      const idx = posToRemove - 1;
-      if (idx >= 0 && idx < this.queue.orders.length) {
-        this.queue.orders.splice(idx, 1);
-      }
-    }
 
-    // Free multiple tables
+
+  cancelOrder() {
+    // We do not need the active timer logic here anymore
+    const docIdToCancel = this.lastOrderDocId; 
+    
+    // Free tables from the last placed order
     if (this.lastOrderTableIds && this.lastOrderType !== 'pickup') {
       this.lastOrderTableIds.forEach(id => {
         const table = this.seating.getTables().find(t => t.id === id);
-        if (table && table.isOccupied) {
-          table.free();
-        }
+        if (table && table.isOccupied) table.free();
       });
     }
-    
-    this.activeQueuePosition = null;
-    this.activeQueueWait = null;
+
     this.lastOrderDocId = null;
     this.lastOrderTableIds = null;
     this.lastOrderType = null;
 
     this.cart.clear();
-    this.ui.hideQueueBanner();
     this.ui.togglePaymentModal(false);
     this.ui.toggleCart(false);
     this.updateCartView();
+    
+    if (document.getElementById('queue-list-modal')) {
+      this.ui.showQueueList();
+    }
+    
     this.ui.showToast("Order cancelled.");
+
+    if (docIdToCancel && window.firebaseDB && window.dbMethods) {
+      const db = window.firebaseDB;
+      const { doc, runTransaction, serverTimestamp } = window.dbMethods;
+      runTransaction(db, async (transaction) => {
+        const orderRef = doc(db, "orders", docIdToCancel);
+        const orderSnap = await transaction.get(orderRef);
+        if (!orderSnap.exists()) return;
+        transaction.update(orderRef, {
+          status: 'cancelled',
+          cancelledAt: serverTimestamp()
+        });
+      }).catch(error => console.error("Cancel order failed: ", error));
+    }
   }
 
- // Cancel a specific order in the in-memory queue by its 1-based position
   cancelQueueAt(position) {
     if (!position || !this.queue || !Array.isArray(this.queue.orders)) return;
+    
+    // Convert 1-based position to 0-based array index
     const idx = position - 1;
     if (idx < 0 || idx >= this.queue.orders.length) return;
 
-    // If cancelling the currently active order, delegate to cancelOrder
-    if (this.activeQueuePosition === position) {
-      this.cancelOrder();
-      this.ui.showQueueList(); // Force queue UI sync
-      return;
+    // 1. Get the specific order being cancelled
+    const orderToCancel = this.queue.orders[idx];
+    
+    // 2. Stop this specific order's "Ready to Serve" pop-up from firing
+    if (orderToCancel && orderToCancel.timeoutId) {
+      clearTimeout(orderToCancel.timeoutId);
     }
 
-    // NEW: Get the order being cancelled and free its specific tables
-    const orderToCancel = this.queue.orders[idx];
+    // 3. Free up this order's specific tables
     if (orderToCancel && orderToCancel.tableIds && orderToCancel.type !== 'pickup') {
       orderToCancel.tableIds.forEach(id => {
         const table = this.seating.getTables().find(t => t.id === id);
-        if (table && table.isOccupied) {
-          table.free(); // Releases the seat back to the floor plan
-        }
+        if (table && table.isOccupied) table.free(); 
       });
     }
 
-    // Remove the specified order from queue
+    // 4. Remove it from the queue array
     this.queue.orders.splice(idx, 1);
 
-    // Adjust tracked active position if necessary
-    if (this.activeQueuePosition && position < this.activeQueuePosition) {
-      this.activeQueuePosition = Math.max(1, this.activeQueuePosition - 1);
-    }
-
-    if (this.activeQueuePosition && this.activeQueuePosition > this.queue.orders.length) {
-      this.activeQueuePosition = this.queue.orders.length > 0 ? 1 : null;
-    }
-
-    // Refresh UI entirely
+    // 5. Refresh the UI entirely
     this.updateCartView();
-    this.ui.showQueueList(); // Dynamically re-renders the list instead of hiding it
-    
-    console.log(`Cancelled queue position ${position}. Remaining orders: ${this.queue.orders.length}`);
+    this.ui.showQueueList(); 
     this.ui.showToast(`Order #${position} cancelled.`);
-  }
-
-  // Update the queue countdown to trigger the new modal
-  _startQueueCountdown(orderSummary) {
-    if (this._queueTimerInterval) clearInterval(this._queueTimerInterval);
-    let remaining = orderSummary.waitTime * 60; 
-
-    const updateTimer = () => {
-      if (remaining <= 0) {
-        clearInterval(this._queueTimerInterval);
-        this._queueTimerInterval = null;
-        this.activeQueuePosition = null;
-        this.activeQueueWait = null;
-        this.ui.hideQueueBanner();
-        this.updateCartView();
-        
-        // NEW: Dynamic notification string and modal trigger
-        const msg = orderSummary.type === 'pickup' 
-          ? "Your order is ready for pick up at the counter!" 
-          : `Your order is ready and will be served at Table ${orderSummary.table} shortly!`;
-        this.ui.showOrderReadyModal(msg);
-        return;
-      }
-      const mins = Math.floor(remaining / 60);
-      const secs = remaining % 60;
-      this.ui.updateQueueBanner(
-        orderSummary.position,
-        mins,
-        secs,
-        orderSummary.type,
-        orderSummary.table
-      );
-      remaining--;
-    };
-
-    updateTimer();
-    this._queueTimerInterval = setInterval(updateTimer, 1000);
   }
 
   // Add this method inside CafeController in controller.js
@@ -493,24 +429,12 @@ class CafeController {
 
     validateForm();
   }
-}
+} // <--- THIS CLOSING BRACKET ENDS THE CAFECONTROLLER CLASS
 
 // Instantiate App
 const app = new CafeController();
-window.app = app; 
+window.app = app;
 
-window.openCart  = () => app.ui.toggleCart(true);
-window.closeCart = () => app.ui.toggleCart(false);
-window.proceedToPayment = () => app.proceedToPayment();     // NEW ROUTE
-window.placeOrder = (method) => app.placeOrder(method);     // UPDATED ROUTE
-window.clearCart  = () => app.cart.clear();
-
-window.setCategory = (cat, btn) => {
-  document.querySelectorAll('.cat-btn').forEach(b => b.classList.remove('active'));
-  btn.classList.add('active');
-  document.querySelectorAll('.menu-section').forEach(s => s.style.display = 'none');
-  document.getElementById(cat).style.display = 'block';
-};
 
 window.setFilter = (tag, btn) => {
   document.querySelectorAll('.filter-chip').forEach(b => b.classList.remove('active'));
@@ -522,4 +446,9 @@ window.setFilter = (tag, btn) => {
   });
 };
 
-window.setPickupTime = (time) => app.setPickupTime(time);
+// Add these at the bottom of controller.js
+window.openCart = () => app.ui.toggleCart(true);
+window.closeCart = () => app.ui.toggleCart(false);
+window.clearCart = () => app.cart.clear();
+window.proceedToPayment = () => app.proceedToPayment();
+window.placeOrder = (method) => app.placeOrder(method);

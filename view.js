@@ -111,10 +111,14 @@ class UIManager {
     `;
   }
 
-  updateCart(cart, queuePos, queueLen, selectedTableIds, availableCount, orderType, activeWaitTime, pickupTime) { // FIXED: changed to selectedTableIds
+  updateCart(cart, queuePos, queueLen, selectedTableIds, availableCount, orderType, activeWaitTime, pickupTime) {
     const stats = cart.getTotals();
     const items = cart.getItems();
     const ids   = Object.keys(items);
+
+    // Calculate ready time here so the HTML template below can read it safely
+    const readyDate = new Date(Date.now() + stats.estimatedTime * 60000);
+    const readyTimeStr = readyDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
     document.getElementById('cart-badge').textContent = stats.totalItems;
     document.getElementById('cart-badge').classList.toggle('show', stats.totalItems > 0);
@@ -168,7 +172,6 @@ class UIManager {
             </button>
           </div>`;
       } else {
-        // FIXED: Now correctly checks the array length
         const hasTables = selectedTableIds && selectedTableIds.length > 0 && !selectedTableIds.includes('takeout');
         const dineLabel = isDineIn && hasTables
           ? `🪑 Tables: ${selectedTableIds.join(', ')} — Edit`
@@ -189,24 +192,38 @@ class UIManager {
           ${isDineIn && (!selectedTableIds || selectedTableIds.length === 0) ? `<p class="seat-hint">👆 Select a table from the floor plan</p>` : ''}
           
           ${isPickup ? `
-            <div style="margin-top: 12px; margin-bottom: 8px; display: flex; align-items: center; justify-content: space-between; background: rgba(255,255,255,0.03); padding: 10px 14px; border-radius: 12px; border: 0.5px solid var(--border);">
-              <label style="font-size: 13px; color: var(--text-dim); font-weight: 500;">Pick Up Time</label>
-              <input type="time" class="form-input" onchange="window.setPickupTime(this.value)" value="${pickupTime || ''}" style="background: var(--surface2); padding: 6px 10px; width: auto; font-size: 13px; border-radius: 8px;">
+          <div style="margin-top: 12px; margin-bottom: 8px; display: flex; flex-direction: column; gap: 10px; background: rgba(255,255,255,0.03); padding: 12px 14px; border-radius: 12px; border: 0.5px solid var(--border);">
+            <div style="display: flex; align-items: center; justify-content: space-between;">
+              <label style="font-size: 13px; color: var(--text-dim); font-weight: 500;">Order Timing</label>
+              <select class="form-input" onchange="const isPre = this.value === 'preorder'; document.getElementById('pickup-time-row').style.display = isPre ? 'flex' : 'none'; window.setPickupTime(isPre ? '' : 'ESTIMATED');" style="background: var(--surface2); padding: 6px 10px; width: auto; font-size: 13px; border-radius: 8px; cursor:pointer;">
+                <option value="estimated" ${pickupTime === 'ESTIMATED' || !pickupTime || pickupTime === 'ASAP' ? 'selected' : ''}>
+                  Estimated pick up time (${readyTimeStr})
+                </option>
+                <option value="preorder" ${pickupTime && pickupTime !== 'ESTIMATED' && pickupTime !== 'ASAP' ? 'selected' : ''}>
+                  Schedule
+                </option>
+              </select>
             </div>
+            
+            <div id="pickup-time-row" style="display: ${pickupTime && pickupTime !== 'ESTIMATED' && pickupTime !== 'ASAP' ? 'flex' : 'none'}; align-items: center; justify-content: space-between; border-top: 0.5px solid var(--border); padding-top: 10px;">
+              <label style="font-size: 13px; color: var(--text-dim); font-weight: 500;">Select Time</label>
+              <input type="time" class="form-input" step="600" onchange="window.setPickupTime(this.value)" value="${pickupTime && pickupTime !== 'ESTIMATED' && pickupTime !== 'ASAP' ? pickupTime : ''}" style="background: var(--surface2); padding: 6px 10px; width: auto; font-size: 13px; border-radius: 8px; color: var(--cream);">
+            </div>
+          </div>
           ` : ''}
         `;
       }
     }
 
+    // THIS IS THE PART THAT WAS BROKEN! (It is now safely inside the function)
     const checkoutBtn = document.getElementById('checkout-btn');
     if (checkoutBtn) {
       checkoutBtn.disabled = (ids.length === 0 || !selectedTableIds || selectedTableIds.length === 0);
     }
 
-
-const placeOrderBtn = document.getElementById('real-place-order-btn');
+    const placeOrderBtn = document.getElementById('real-place-order-btn');
     if (placeOrderBtn) {
-      placeOrderBtn.disabled = (ids.length === 0 || !selectedTableId);
+      placeOrderBtn.disabled = (ids.length === 0 || !selectedTableIds || selectedTableIds.length === 0);
     }
   }
 
@@ -215,7 +232,6 @@ const placeOrderBtn = document.getElementById('real-place-order-btn');
     const container = document.getElementById('floor-plan');
     if (!container) return;
 
-    // FIX: Restored the missing table and availability variables
     const tables = seatingManager.getTables();
     const available = seatingManager.getAvailableCount();
     const total = tables.length;
@@ -329,6 +345,20 @@ const placeOrderBtn = document.getElementById('real-place-order-btn');
     document.getElementById('oc-queue').textContent  = `#${summary.position}`;
     document.getElementById('oc-location').textContent = locationLine;
     document.getElementById('oc-total').textContent  = `₱${summary.total.toLocaleString()}`;
+    
+    // FIX: Calculate time using summary.waitTime
+    const readyDate = new Date(Date.now() + summary.waitTime * 60000);
+    const readyTimeStr = readyDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+    const timerLabel = modal.querySelector('.ocm-timer-label');
+    if (timerLabel) {
+      timerLabel.textContent = `Total prep time: ${summary.waitTime} mins (Ready at ${readyTimeStr})`;
+      timerLabel.style.fontSize = "13px";
+      timerLabel.style.color = "var(--gold-light)";
+      timerLabel.style.fontStyle = "normal";
+      timerLabel.style.fontWeight = "500";
+    }
+
     modal.classList.add('open');
     document.getElementById('overlay').classList.add('open');
   }
@@ -339,68 +369,44 @@ const placeOrderBtn = document.getElementById('real-place-order-btn');
     document.getElementById('overlay').classList.remove('open');
   }
 
-  updateQueueBanner(position, mins, secs, type, table) {
-    let banner = document.getElementById('queue-banner');
-    if (!banner) {
-      banner = document.createElement('div');
-      banner.id = 'queue-banner';
-      banner.className = 'queue-banner';
-      
-      // Inject into the Queue Modal if it's open, otherwise append to body
-      const modalContainer = document.getElementById('queue-list-modal');
-      if (modalContainer) {
-        modalContainer.querySelector('.ql-inner').insertBefore(banner, modalContainer.querySelector('.ql-body'));
-      } else {
-        document.body.appendChild(banner);
-      }
-    }
-    
-    const pad = n => String(n).padStart(2, '0');
-    
-    // UPDATED: Removed the # badge and changed the label to "Your Order" only
-    banner.innerHTML = `
-      <div class="qb-inner">
-        <div class="qb-info">
-          <span class="qb-label">Your Order</span>
-          <span class="qb-timer">${pad(mins)}<em>:</em>${pad(secs)}<span class="qb-unit"> remaining</span></span>
-        </div>
-      </div>`;
-    banner.classList.add('visible');
-  }
-
-  hideQueueBanner() {
-    const banner = document.getElementById('queue-banner');
-    if (banner) banner.classList.remove('visible');
-  }
-
-  // Small modal to show current orders in the queue
- showQueueList() {
+  showQueueList() {
     let modal = document.getElementById('queue-list-modal');
-    if (modal) return;
+    let isExisting = true;
 
-    modal = document.createElement('div');
-    modal.id = 'queue-list-modal';
-    modal.className = 'queue-list-modal';
+    if (!modal) {
+      modal = document.createElement('div');
+      modal.id = 'queue-list-modal';
+      modal.className = 'queue-list-modal';
+      isExisting = false;
+    }
 
     const orders = (window.app && window.app.queue && window.app.queue.orders) ? window.app.queue.orders : [];
 
     const listHTML = orders.length === 0
       ? '<div class="ql-empty">No active orders.</div>'
       : `<div class="ql-list">${orders.map((o, i) => {
-          const isFirst = i === 0;
           const items = Object.keys(o.items || {}).map(k => `${o.items[k].qty}× ${o.items[k].name || k}`).join('<br>');
-          const ts = o.timestamp ? new Date(o.timestamp).toLocaleTimeString() : '';
-          return `<div class="ql-item ${isFirst? 'first':''}">
-                    <div style="display:flex;justify-content:space-between;align-items:center;gap:8px">
+          const ts = o.timestamp ? new Date(o.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : '';
+          
+          // Grab the exact ready time mapped in placeOrder
+          const readyTime = o.readyAt ? o.readyAt.getTime() : (Date.now() + (o.prepTime || 15) * 60000);
+
+          return `<div class="ql-item">
+                    <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">
                       <div>
-                        <div class="ql-pos">#${i+1}${isFirst? ' · First':''}</div>
-                        <div class="ql-meta">Prep: ${o.prepTime || '-'} min ${ts? '· ' + ts : ''}</div>
+                        <div class="ql-pos" style="color: var(--gold);">#${i+1} · Order</div>
+                        
+                        <div class="ql-meta" style="margin-top:8px;">
+                          <span class="live-countdown" data-ready="${readyTime}" style="font-family:'Cormorant Garamond', serif; font-size:24px; font-weight:700; color:var(--gold-light);"></span>
+                          <br><span style="opacity:0.5; font-size:10px;">Ordered at ${ts}</span>
+                        </div>
+                        
                       </div>
                       <div>
                         <button class="ql-item-cancel" onclick="app.cancelQueueAt(${i+1})">Cancel</button>
                       </div>
                     </div>
-                    <div class="ql-items">${items}</div>
+                    <div class="ql-items" style="margin-top:12px; border-top:0.5px solid var(--border); padding-top:12px;">${items}</div>
                   </div>`;
         }).join('')}</div>`;
 
@@ -413,26 +419,60 @@ const placeOrderBtn = document.getElementById('real-place-order-btn');
         <div class="ql-body">${listHTML}</div>
       </div>`;
 
-    document.body.appendChild(modal);
-
-    // NEW: Automatically move the active banner into this modal when opened
-    const activeBanner = document.getElementById('queue-banner');
-    if (activeBanner) {
-      modal.querySelector('.ql-inner').insertBefore(activeBanner, modal.querySelector('.ql-body'));
+    if (!isExisting) {
+      document.body.appendChild(modal);
     }
 
+    // Start the interval for all cards inside this modal
+    this.startQueueTimers();
+
     modal.querySelector('.ql-close').addEventListener('click', () => this.hideQueueList());
+  }
+
+  startQueueTimers() {
+    // Clear any existing interval to prevent duplicates
+    if (this.queueListInterval) clearInterval(this.queueListInterval);
+    
+    this.tickQueueTimers(); // Immediate initial render so it doesn't wait 1 sec to show
+    
+    // Tick every second for every card
+    this.queueListInterval = setInterval(() => {
+      this.tickQueueTimers();
+    }, 1000);
+  }
+
+  tickQueueTimers() {
+    // Find all active timers in the DOM
+    const timerEls = document.querySelectorAll('.live-countdown');
+    if (timerEls.length === 0) return;
+
+    timerEls.forEach(el => {
+      const readyAt = parseInt(el.dataset.ready, 10);
+      const remaining = readyAt - Date.now();
+
+      if (remaining <= 0) {
+        el.innerHTML = "✓ Ready to Pick Up/Serve";
+        el.style.color = "var(--green-light)";
+      } else {
+        const mins = Math.floor(remaining / 60000);
+        const secs = Math.floor((remaining % 60000) / 1000);
+        const pad = n => String(n).padStart(2, '0');
+        
+        el.innerHTML = `${pad(mins)}<em style="opacity:0.5; font-style:normal;">:</em>${pad(secs)} <span style="font-family:'Outfit', sans-serif; font-size:11px; font-weight:400; color:var(--text-dim); margin-left:4px;">remaining</span>`;
+      }
+    });
   }
 
   hideQueueList() {
     const modal = document.getElementById('queue-list-modal');
     if (modal) modal.remove();
+    // Stop the timers when modal is closed to save memory
+    if (this.queueListInterval) clearInterval(this.queueListInterval);
   }
 
+  // ─── PAYMENT UI METHODS ───
 
-// ─── PAYMENT UI METHODS ───
-
- showPaymentOptions() {
+  showPaymentOptions() {
     const modal = document.getElementById('payment-modal');
     if (modal) modal.classList.add('open');
 
@@ -471,37 +511,36 @@ const placeOrderBtn = document.getElementById('real-place-order-btn');
   }
 
   showCardForm() {
-  // Hide initial payment options matrix
-  document.getElementById('payment-step-1').style.display = 'none';
-  // Hide QR Payment container if active
-  document.getElementById('payment-step-2').style.display = 'none';
-  
-  // Reveal the hidden credit/debit card details form
-  document.getElementById('payment-step-3').style.display = 'flex';
-  document.getElementById('payment-subtitle').textContent = "Enter your card details.";
+    // Hide initial payment options matrix
+    document.getElementById('payment-step-1').style.display = 'none';
+    // Hide QR Payment container if active
+    document.getElementById('payment-step-2').style.display = 'none';
+    
+    // Reveal the hidden credit/debit card details form
+    document.getElementById('payment-step-3').style.display = 'flex';
+    document.getElementById('payment-subtitle').textContent = "Enter your card details.";
 
-  // Update total value display target within card submit context 
-  const stats = this.cart ? this.cart.getTotals() : { total: 0 };
-  const cardTotalSpan = document.getElementById('card-pay-total');
-  if (cardTotalSpan) {
-    cardTotalSpan.textContent = stats.total.toLocaleString();
+    // Update total value display target within card submit context 
+    const stats = this.cart ? this.cart.getTotals() : { total: 0 };
+    const cardTotalSpan = document.getElementById('card-pay-total');
+    if (cardTotalSpan) {
+      cardTotalSpan.textContent = stats.total.toLocaleString();
+    }
+    
+    // Rewire back button functionality to return cleanly to step 1
+    const backBtn = document.getElementById('payment-back-btn');
+    if (backBtn) {
+      backBtn.innerHTML = '← Back to Options';
+      backBtn.onclick = () => {
+        this.showPaymentOptions();
+      };
+    }
+
+    // Wire up card input validation after the form is visible in the DOM
+    if (window.app) window.app.setupPaymentValidationListeners();
   }
-  
-  // Rewire back button functionality to return cleanly to step 1
-  const backBtn = document.getElementById('payment-back-btn');
-  if (backBtn) {
-    backBtn.innerHTML = '← Back to Options';
-    backBtn.onclick = () => {
-      this.showPaymentOptions();
-    };
-  }
 
-  // Wire up card input validation after the form is visible in the DOM
-  if (window.app) window.app.setupPaymentValidationListeners();
-
-}
-
-showOrderReadyModal(msg) {
+  showOrderReadyModal(msg) {
     const modal = document.getElementById('order-ready-modal');
     const msgEl = document.getElementById('order-ready-msg');
     if (!modal || !msgEl) return;
@@ -517,4 +556,3 @@ showOrderReadyModal(msg) {
     document.getElementById('overlay').classList.remove('open');
   }
 }
-

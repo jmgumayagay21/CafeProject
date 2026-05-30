@@ -902,91 +902,12 @@ body{font-family:'Outfit',sans-serif;background:var(--bg);color:var(--text);min-
   font-style: italic;
 }
 
-
-/* ── QUEUE BANNER (live countdown) ── */
-.queue-banner {
-  display: none; /* Hide it completely when just sitting in the body */
-  margin-bottom: 20px; /* Space between banner and the queue list */
-}
-
 /* ONLY show the banner if it is safely nested inside the Queue Modal */
 .queue-list-modal .queue-banner.visible {
   display: block;
   transform: none; 
 }
 
-.qb-inner {
-  background: var(--surface3); /* Blends perfectly into the modal */
-  border: 0.5px solid var(--border);
-  border-radius: 12px; /* Rounded on all sides now instead of just the top */
-  padding: 16px 20px;
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  box-shadow: none; /* Removed the heavy floating drop shadow */
-}
-
-.qb-badge {
-  flex-shrink: 0;
-  background: var(--gold);
-  color: var(--bg);
-  font-family: 'Cormorant Garamond', serif;
-  font-size: 22px;
-  font-weight: 700;
-  width: 48px;
-  height: 48px;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-.qb-info {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-}
-.qb-label {
-  font-size: 11px;
-  color: var(--text-dim);
-  letter-spacing: 0.5px;
-  text-transform: uppercase;
-}
-.qb-timer {
-  font-family: 'Cormorant Garamond', serif;
-  font-size: 28px;
-  font-weight: 700;
-  color: var(--gold-light);
-  line-height: 1;
-  letter-spacing: -0.5px;
-}
-.qb-timer em {
-  font-style: normal;
-  opacity: 0.5;
-  animation: blink 1s step-end infinite;
-}
-.qb-unit {
-  font-family: 'Outfit', sans-serif;
-  font-size: 11px;
-  font-weight: 400;
-  color: var(--text-dim);
-  margin-left: 4px;
-  vertical-align: middle;
-}
-.qb-close {
-  flex-shrink: 0;
-  width: 30px; height: 30px;
-  border-radius: 50%;
-  border: 0.5px solid var(--border);
-  background: none;
-  color: var(--text-dim);
-  font-size: 14px;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: all 0.2s;
-}
 .qb-close:hover { background: var(--surface3); color: var(--cream); }
 
 @keyframes blink { 50% { opacity: 0; } }
@@ -1109,6 +1030,7 @@ body{font-family:'Outfit',sans-serif;background:var(--bg);color:var(--text);min-
 }
 
 .form-input {
+  width: 100%; /* Add this line to fix the overflow */
   background: rgba(255,255,255,0.03);
   border: 0.5px solid var(--border2);
   color: var(--cream);
